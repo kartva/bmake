@@ -1,6 +1,7 @@
 {
   "version": "4",
   "specifiers": {
+    "jsr:@hono/hono@*": "4.7.2",
     "jsr:@hono/hono@^4.7.2": "4.7.2"
   },
   "jsr": {

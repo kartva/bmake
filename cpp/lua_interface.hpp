@@ -7,12 +7,7 @@
 #include <unordered_map>
 
 enum class PosType {
-	Win, Loss, Other
-};
-
-struct PosMoves {
-	PosType ty;
-	vec<Move> moves;
+	Win, Loss, Draw, Other
 };
 
 struct LuaInterface {
@@ -20,12 +15,19 @@ struct LuaInterface {
 
 	LuaInterface(std::string const& path);
 	~LuaInterface();
-	PosMoves getValidMoves(Position const& position);
-	void checkLua(int r);
+
+	void push_position(Position const& position);
+	PosType get_pos_type(Position const& position);
+	void valid_moves(vec<Move>& out, Position const& position);
+	void check(int r);
+	void validate();
 
 	// Returns the initial board state
-	Position getInitialPosition();
+	Position initial_position();
 	
 	// Returns mapping of piece numbers to their string representations
-	std::unordered_map<int, std::string> getPieceNames();
+	std::unordered_map<int, std::string> piece_names();
+
+	// Returns the dimensions of the board
+	std::pair<int, int> board_dims();
 };

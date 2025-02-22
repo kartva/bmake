@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #ifndef BUILD_DEBUG
 #include <mimalloc.h>
 #include <mimalloc-new-delete.h>

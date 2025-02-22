@@ -35,13 +35,13 @@ FetchContent_MakeAvailable(gtl)
 
 # FetchContent_MakeAvailable(cereal) 
 
-add_executable(main main.cpp lua_interface.cpp)
+add_executable(main main.cpp lua_interface.cpp server_io.cpp)
 add_executable(nn nn.cpp)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(LUA REQUIRED lua5.4)
 
-target_link_libraries(main PUBLIC gtl ${LUA_LIBRARIES})
+target_link_libraries(main PUBLIC gtl ${LUA_STATIC_LIBRARY_DIRS})
 target_include_directories(main PUBLIC ${LUA_INCLUDE_DIRS})
 
 if (CMAKE_BUILD_TYPE MATCHES Release)

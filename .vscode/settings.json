@@ -1,6 +1,10 @@
 {
     "cmake.sourceDirectory": "/bmake/cpp",
     "files.associations": {
-        "tuple": "cpp"
-    }
+        "tuple": "cpp",
+        "*.tcc": "cpp",
+        "fstream": "cpp",
+        "iostream": "cpp"
+    },
+    "deno.enable": true
 }

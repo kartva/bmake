@@ -1,18 +1,37 @@
 #include "nn.hpp"  // Assumes nn.hpp defines INPUT_SIZE, HL_SIZE, and struct Network
 
 #include <iostream>
+#include <chrono>
 #include <cmath>
 #include <random>
 
 using namespace std;
 
+// float activation(float in) {
+//     return tanh(in);
+// }
+
+// float activation_prime(float z) {
+//     float t = tanh(z);
+//     return 1.0f - t * t;
+// }
+
 float activation(float in) {
-    return tanh(in);
+    if (in < -1) {
+        return -1;
+    } else if (in > 1) {
+        return 1;
+    } else {
+        return in;
+    }
 }
 
 float activation_prime(float z) {
-    float t = tanh(z);
-    return 1.0f - t * t;
+    if (z < -1 || z > 1) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 int used_indices[INPUT_SIZE];
@@ -56,7 +75,7 @@ float forward_flipidx(Network &net, const int idx) {
     // Compute hidden layer values.
     for (int j = 0; j < HL_SIZE; j++) {
         float z = net.hidden_zs[j];
-        // Instead of recomputing the entire sum, we can update it based on the flipped bit.
+        // update it based on the flipped bit.
 
         if (curr_value) { // if on, turn off. if off, turn on.
             z -= net.hidden_weights[idx][j];
@@ -107,7 +126,61 @@ void backward(Network &net, float target, float learning_rate) {
     }
 }
 
+
+void benchmark_time_forward_vs_forward_flipidx() {
+    Network net;
+
+    mt19937 gen(random_device{}());
+
+    normal_distribution<float> dist1(0.0f, sqrt(2.0f / (INPUT_SIZE + HL_SIZE)));
+    normal_distribution<float> dist2(0.0f, sqrt(2.0f / (1 + HL_SIZE)));
+    
+    for (int i = 0; i < INPUT_SIZE; i++) {
+        for (int j = 0; j < HL_SIZE; j++) {
+            net.hidden_weights[i][j] = dist1(gen);
+        }
+    }
+
+    for (int j = 0; j < HL_SIZE; j++) {
+        net.hidden_biases[j] = 0.0f;
+        net.output_weights[j] = dist2(gen);
+    }
+
+    net.output_bias = 0.0f;
+
+    bool input1[INPUT_SIZE];
+    bool input2[INPUT_SIZE];
+    for (int i = 0; i < INPUT_SIZE; i++) {
+        input1[i] = i % 2 == 0 || i % 3 == 0; // 1
+        input2[i] = i % 2 == 1; // 0
+    }
+
+    int n = 1000;
+    
+    auto start = chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < n; i++) {
+        forward(net, input1);
+    }
+
+    auto mid = chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < n; i++) {
+        forward_flipidx(net, 0);
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+
+    cout << "Time for forward: " << chrono::duration_cast<chrono::microseconds>(mid - start).count() << " microseconds\n";
+    cout << "Time for forward_flipidx: " << chrono::duration_cast<chrono::microseconds>(end - mid).count() << " microseconds\n";
+
+    exit(0);
+}
+
 int main() {
+
+    benchmark_time_forward_vs_forward_flipidx();
+
     Network net;
 
     mt19937 gen(random_device{}());

@@ -1,83 +1,64 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { Coordinate, Move, Piece, MessageToClient } from "../../shared.ts";
 
-// Add types to match C++ structure
-type Coord = {
-  x: number;
-  y: number;
-};
-
-type Piece = {
-  pos: Coord;
-  type: number;
-  add: boolean;
-};
-
-type Move = {
-  from: Coord;
-  to: Coord;
-  pieces: Piece[];
-};
-
-type ValidMovesResponse = {
-  moves: Move[];
-};
-
-const initialBoard = [
-  ["r", "n", "b", "q", "k", "b", "n", "r"],
-  ["p", "p", "p", "p", "p", "p", "p", "p"],
-  ["", "", "", "", "", "", "", ""],
-  ["", "", "", "", "", "", "", ""],
-  ["", "", "", "", "", "", "", ""],
-  ["", "", "", "", "", "", "", ""],
-  ["P", "P", "P", "P", "P", "P", "P", "P"],
-  ["R", "N", "B", "Q", "K", "B", "N", "R"],
-];
+const EmptyBoard = Array(8).fill(null).map(() => Array(8).fill(""));
 
 export default function ChessBoard() {
   const [selectedSquare, setSelectedSquare] = useState<[number, number] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [validMoves, setValidMoves] = useState<Move[]>([]);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [board, setBoard] = useState<string[][]>(EmptyBoard);
+  const [pieceNames, setPieceNames] = useState<Record<number, string>>({});
+  const [boardInfo, setBoardInfo] = useState<MessageToClient | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    return () => {
-      // Cleanup on unmount
-      abortControllerRef.current?.abort();
+    if (boardInfo != null && boardInfo.type == "board_info" && Object.keys(pieceNames).length > 0) {
+      const newBoard = Array(boardInfo.height).fill(null).map(() => Array(boardInfo.width).fill(""));
+      boardInfo.pieces.forEach((piece: Piece) => {
+        newBoard[piece.pos.y - 1][piece.pos.x - 1] = pieceNames[piece.type];
+      });
+      setBoard(newBoard);
+      setBoardInfo(null); // Clear stored board info
+    }
+  }, [pieceNames, boardInfo]);
+
+  useEffect(() => {
+    wsRef.current = new WebSocket(new URL("/play", process.env.NEXT_PUBLIC_SERVER_URL));
+
+    wsRef.current.onmessage = (event) => {
+      const msg = JSON.parse(event.data) as MessageToClient;
+      switch (msg.type) {
+        case "requested_valid_moves": {
+          setValidMoves(msg.moves);
+          setIsLoading(false);
+          break;
+        }
+        case "board_info": {
+          setPieceNames(msg.pieceNames);
+          setBoardInfo(msg); // Store board info for processing after pieceNames updates
+          break;
+        }
+      }
     };
+
+    wsRef.current.onopen = () => {
+      wsRef.current?.send(JSON.stringify({ type: "start_game" }));
+    };
+
+    return () => wsRef.current?.close();
   }, []);
 
   const fetchValidMoves = async (x: number, y: number) => {
-    // Cancel any ongoing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new AbortController for this request
-    abortControllerRef.current = new AbortController();
+    setIsLoading(true);
     setValidMoves([]); // Clear previous valid moves
-
-    try {
-      setIsLoading(true);
-      const response = await fetch(
-        `/play/valid_moves?x=${x}&y=${y}`,
-        { signal: abortControllerRef.current.signal }
-      );
-      if (!response.ok) {
-        throw new Error('Failed to fetch valid moves');
-      }
-      const data: ValidMovesResponse = await response.json();
-      setValidMoves(data.moves || []);
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Error fetching valid moves:', error);
-      }
-    } finally {
-      if (abortControllerRef.current?.signal.aborted === false) {
-        setIsLoading(false);
-      }
-    }
+    wsRef.current?.send(JSON.stringify({
+      type: "query_valid_moves",
+      x,
+      y
+    }));
   };
 
   const handleSquareClick = async (rowIndex: number, colIndex: number) => {
@@ -97,11 +78,11 @@ export default function ChessBoard() {
     <div className="flex flex-col items-center" onClick={handleContainerClick}>
       <h1 className="text-4xl font-bold mb-4">Chess Board</h1>
       <div className={`grid grid-cols-8 grid-rows-8 gap-[1px] bg-gray-600 p-[1px]`}>
-        {initialBoard.map((row, rowIndex) =>
+        {board.map((row, rowIndex) =>
           row.map((piece, colIndex) => {
             const isAlternateSquare = (rowIndex + colIndex) % 2 === 0;
             const isSelected = selectedSquare?.[0] === rowIndex && selectedSquare?.[1] === colIndex;
-            const isValidMoveTarget = validMoves.some(move => move.to.x === colIndex && move.to.y === rowIndex);
+            const isValidMoveTarget = validMoves.some(move => move.to.x === colIndex + 1 && move.to.y === rowIndex + 1);
 
             return (
               <div

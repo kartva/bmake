@@ -1,9 +1,27 @@
 #include "util.hpp"
+#include "lua_interface.hpp"
+#include "server_io.cpp"
+
 #include <sstream>
 #include <fstream>
 #include <iostream>
 
 using namespace std;
+
+void applyMove(Position &pos, Move &move) {
+	std::map<Coord, int> rem;
+	vec<Piece> newBoard;
+	for (Piece &p : pos.board) {
+		if (p.being_added) newBoard.push_back(p);
+		else rem[p.c] = 1;
+	}
+	for (Piece &p : move.add_remove) {
+		if (rem.find(p.c) == rem.end()) {
+			newBoard.push_back(p);
+		}
+	}
+	swap(newBoard, pos.board);
+}
 
 int main(int argc, char** argv) {
 	stringstream ss;
@@ -31,11 +49,34 @@ int main(int argc, char** argv) {
 			cerr << "Error: Cannot open file: " << weights_path << endl;
 			return 1;
 		}
+		
+		LuaInterface lua(lua_path);
+        intro(lua);
+		Position pos = lua.initial_position();
+        cout.flush();
+
+        // Process commands
+        string command;
+        while (cin >> command) {
+            if (command == "query_valid_moves") {
+				vec<Move> out;
+				lua.valid_moves(out, pos);
+                sendListOfMoves(out);
+                cout.flush();
+            }
+            else if (command == "move_select") {
+                Move move = receiveMove();
+                applyMove(pos, move);
+            }
+        }
 	} else if (ty == "train") {
 		ofstream weights_input_stream(weights_path);
 		if (!weights_input_stream.is_open()) {
 			cerr << "Error: Cannot open file: " << weights_path << endl;
 			return 1;
 		}
+	} else {
+		cerr << "Usage: play|train <lua_path> <weights_path>" << endl;
+		return 1;
 	}
 }

@@ -1,7 +1,12 @@
-import type { NextConfig } from "next";
+import { NextConfig } from "next";
+import { join } from "node:path";
+import { cwd } from "node:process";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-};
-
-export default nextConfig;
+export default (phase: string): NextConfig => ({
+  // reactStrictMode: true,
+  experimental: {
+    turbo: {
+      root: join(cwd(), "..")
+    }
+  }
+});
