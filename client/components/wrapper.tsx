@@ -60,6 +60,7 @@ export function useSignInRedirect() {
 export type Theme = "dark"|"light";
 
 export type AppCtx = {
+	ws?: WebSocket,
 	open: (m: AppModal) => void,
 	popupCount: number, incPopupCount: ()=>number,
 	forward: (back?: string)=>void, back: ()=>void,

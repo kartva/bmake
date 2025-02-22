@@ -7,12 +7,16 @@ using namespace std;
 
 Coord receiveCoord() {
     Coord coord;
-    cin >> coord.i >> coord.j;
+    int i, j;
+    cin >> i >> j;
+    coord.i = i;
+    coord.j = j;
+
     return coord;
 }
 
 void sendCoord(const Coord& coord) {
-    cout << coord.i << " " << coord.j << "\n";
+    cout << (int) coord.i << " " << (int) coord.j << "\n";
 }
 
 
@@ -65,7 +69,6 @@ void intro(LuaInterface& lua) {
     cout << width << " " << height << "\n";
     // Then send the position using the fixed array
     sendPosition(pos);
-    cout << pieceNames.size() << "\n";
     for (const auto& [type, name] : pieceNames) {
         cout << type << " " << name << "\n";
     }

@@ -91,13 +91,14 @@ struct SearchState {
 	std::mutex mut;
 	int n_wait=0;
 
-	int parent=-1, move_i;
+	SearchState* parent;
+	int move_i;
 	std::atomic_flag kill_children;
 	int best=LOSING, best_move_i=-1;
 	// bool can_null=false;
 
-	SearchState(PosType pos_ty, Position pos, uint64_t hash, int score, int move_i, int depth):
-		pos_ty(pos_ty), pos(pos), hash(hash), score(score), depth(depth), move_i(move_i) {}
+	SearchState(PosType pos_ty, Position pos, uint64_t hash, int score, int move_i, int depth, SearchState* parent):
+		pos_ty(pos_ty), pos(pos), hash(hash), score(score), depth(depth), move_i(move_i), parent(parent) {}
 };
 
 struct SearchStateCache {
@@ -118,6 +119,7 @@ struct Searcher {
 	int max_pty, n, m, max_depth;
 	vec<vec<uint64_t>> pt_pos_hash;
 	vec<uint64_t> depth_hash;
+	vec<LuaInterface> interfaces;
 
 	Pool pool;
 	std::string const& lua_path;
@@ -131,7 +133,8 @@ struct Searcher {
 		std::equal_to<uint64_t>, SearchAlloc<SearchStateCache>, 6, std::mutex> cache;
 	
 	Searcher(int max_pty_, int n_, int m_, int max_depth_, int nt_, std::string const& lua_path_, Position current_):
-		max_pty(max_pty_), n(n_), m(m_), max_depth(max_depth_), pool(nt_), lua_path(lua_path_), current(current_) {
+		max_pty(max_pty_), n(n_), m(m_), max_depth(max_depth_),
+		pool(nt_), lua_path(lua_path_), current(current_) {
 
 		std::mt19937_64 rng(123);
 		player_hash = rng();
@@ -145,6 +148,10 @@ struct Searcher {
 		depth_hash.resize(max_depth+MIN_DEPTH+1);
 		for (int i=-MIN_DEPTH; i<=max_depth; i++) {
 			depth_hash[i+MIN_DEPTH] = rng();
+		}
+
+		for (int i=0; i<=nt_; i++) {
+			interfaces.emplace_back(lua_path);
 		}
 	}
 
@@ -182,6 +189,7 @@ struct Searcher {
 		}
 		return o;
 	}
+	int n_calls=0;
 
 	// ab with [gamma, gamma+1]
 	// fails low: <gamma
@@ -192,24 +200,23 @@ struct Searcher {
 		std::mutex mut;
 		vec<std::unique_ptr<SearchState>> stack;
 
-		LuaInterface lua(lua_path,n,m);
 		auto init = std::make_unique<SearchState>(
-			lua.get_pos_type(current), current, hash(current),
-			score(current), -1, depth
+			interfaces[0].get_pos_type(current), current, hash(current),
+			score(current), -1, depth, nullptr
 		);
 
 		if (init->pos_ty!=PosType::Other) return std::nullopt;
 
 		vec<Move> init_moves;
-		lua.valid_moves(init_moves, current);
+		interfaces[0].valid_moves(init_moves, current);
 
 		stack.push_back(std::move(init));
 		int out_move_i=-1, out;
 
-		pool.launch_all([&](int _ti) {
+		pool.launch_all([&](int ti) {
 			vec<Move> moves;
 			vec<std::pair<int,std::unique_ptr<SearchState>>> tmp;
-			LuaInterface lua(lua_path,n,m);
+			auto& lua = interfaces[ti];
 
 			std::unique_lock lock(mut, std::defer_lock_t());
 			while (true) {
@@ -219,28 +226,16 @@ struct Searcher {
 				auto& s = *state;
 				std::unique_lock self_lock(s.mut);
 				stack.pop_back();
-				SearchState* parent = s.parent==-1 ? nullptr : stack[s.parent].get();
 				lock.unlock();
 
 				int g = s.pos.next_player==init_player ? 1-gamma : gamma;
 
 				auto update_parent = [&](int x) {
-					assert(parent);
-
-					x*=-1;
-
-					std::unique_lock lck2(parent->mut);
-					if (x>parent->best) {
-						parent->best=x;
-						parent->best_move_i=s.move_i;
-
-						int g_parent = s.pos.next_player==init_player ? 1-gamma : gamma;
-						if (x>g_parent) {
-							parent->kill_children.notify_all();
-						}
+					if (s.best_move_i!=-1) {
+						killer_move.insert_or_assign(s.hash, s.best_move_i);
 					}
 
-					uint64_t k = s.hash^depth_hash[s.depth];
+					uint64_t k = s.hash^depth_hash[MIN_DEPTH+s.depth];
 
 					cache.emplace(k, SearchStateCache());
 					cache.modify_if(k, [x,g](std::pair<const uint64_t,SearchStateCache>& kv){
@@ -249,30 +244,40 @@ struct Searcher {
 						else v.hi = std::min(v.hi, x);
 					});
 
-					if (--parent->n_wait <= 0) parent->wait.notify_all();
+					if (!s.parent) {
+						out_move_i=s.best_move_i;
+						out=s.best;
+						return;
+					}
+
+					x*=-1;
+
+					std::unique_lock lck2(s.parent->mut);
+					if (s.move_i!=-1 && x>s.parent->best) {
+						s.parent->best=x;
+						s.parent->best_move_i=s.move_i;
+
+						int g_parent = s.pos.next_player==init_player ? 1-gamma : gamma;
+						if (x>g_parent) {
+							s.parent->kill_children.notify_all();
+						}
+					}
+
+					if (--s.parent->n_wait <= 0) s.parent->wait.notify_all();
 				};
 
-				bool ex = parent && parent->kill_children.test();
+				bool ex = s.parent && s.parent->kill_children.test();
 				if (ex) s.kill_children.notify_all();
 				while (s.n_wait>0) s.wait.wait(self_lock);
 
 				if (ex) {
-					std::unique_lock lck2(parent->mut);
-					if (--parent->n_wait <= 0) parent->wait.notify_all();
+					std::unique_lock lck2(s.parent->mut);
+					if (--s.parent->n_wait <= 0) s.parent->wait.notify_all();
 					continue;
 				}
 
 				if (s.visited) {
-					assert(s.best_move_i!=-1);
-
-					killer_move.insert_or_assign(s.hash, s.best_move_i);
-					if (s.parent==-1) {
-						out_move_i=s.best_move_i;
-						out=s.best;
-					} else {
-						update_parent(s.best);
-					}
-
+					update_parent(s.best);
 					continue;
 				}
 
@@ -289,7 +294,7 @@ struct Searcher {
 					continue;
 				}
 
-				if ((s.depth<=0 && s.score>=g) || s.depth<=-MIN_DEPTH) {
+				if ((s.depth<=0 && s.score>=g) || s.depth<=-MIN_DEPTH || s.pos_ty!=PosType::Other) {
 					update_parent(s.score);
 					continue;
 				}
@@ -300,12 +305,11 @@ struct Searcher {
 
 					std::unique_ptr<SearchState> new_state = std::make_unique<SearchState>(
 						s.pos_ty, s.pos, s.hash,
-						s.score, -1, s.depth-3
+						s.score, -1, s.depth-3, state.get()
 					);
 
 					lock.lock();
 
-					new_state->parent = stack.size();
 					stack.push_back(std::move(state));
 					stack.push_back(std::move(new_state));
 
@@ -315,6 +319,7 @@ struct Searcher {
 				
 				moves.clear();
 				lua.valid_moves(moves, s.pos);
+				n_calls++;
 
 				tmp.clear();
 				int n_move=0;
@@ -323,10 +328,11 @@ struct Searcher {
 					change(s, move);
 
 					auto pos_type = lua.get_pos_type(s.pos);
+					n_calls++;
 					auto& new_state = tmp.emplace_back(
 						n_move, std::make_unique<SearchState>(
 							pos_type, s.pos, s.hash,
-							s.score, n_move, s.depth-1
+							s.score, n_move, s.depth-1, state.get()
 						)
 					).second;
 						
@@ -352,10 +358,9 @@ struct Searcher {
 					}
 				);
 
-				int min_score = INT_MIN;//s.score + QS - QS_A*s.depth;
+				int min_score = s.score + QS - QS_A*s.depth;
 
 				lock.lock();
-				int si = stack.size();
 				stack.push_back(std::move(state));
 				s.visited=true;
 				s.n_wait=0;
@@ -371,7 +376,6 @@ struct Searcher {
 						break;
 					}
 
-					new_state.second->parent = si;
 					new_state.second->move_i = new_state.first;
 
 					s.n_wait++;
@@ -386,13 +390,15 @@ struct Searcher {
 		return std::make_optional<std::pair<Move,int>>({init_moves[out_move_i], out});
 	}
 
-	static constexpr int TIME_LIMIT = 1000;
+	static constexpr int TIME_LIMIT = 10000;
 	std::optional<Move> search() {
 		auto start = std::chrono::steady_clock::now();
 		std::optional<Move> best;
 		bool tle=false;
 
-		for (int depth=5; !tle && depth<=max_depth; depth++) {
+		for (int depth=1; !tle && depth<=max_depth; depth++) {
+			std::cout<<"depth "<<depth<<", cache size "<<cache.size()<<", lua calls "<<n_calls<<std::endl;
+
 			auto now = std::chrono::steady_clock::now();
 
 			std::optional<Move> best2;

@@ -1,6 +1,6 @@
 import { Context, Hono } from 'hono';
 import { upgradeWebSocket } from "jsr:@hono/hono/deno";
-import { MessageToClient, MessageToServer, Coordinate, Move, Piece } from "../shared.ts";
+import { MessageToClient, MessageToServer, Coordinate, Move, Piece, ServerResponse } from "../shared.ts";
 import { WSContext } from "jsr:@hono/hono/ws";
 import { ProcessManager } from "./core_io.ts";
 
@@ -111,7 +111,12 @@ async function handle(msg: MessageToServer, ctx: HandleCtx) {
 }
 
 app.get('/play', upgradeWebSocket(_c => {
-	const send = (ws: WSContext, m: MessageToClient) => ws.send(JSON.stringify(m));
+	const send = (ws: WSContext, m: MessageToClient) => {
+    ws.send(JSON.stringify({
+      status: "ok", result: m
+    } satisfies ServerResponse<MessageToClient>));
+  };
+
 	const id = crypto.randomUUID();
 
 	return {

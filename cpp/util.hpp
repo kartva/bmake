@@ -2,7 +2,6 @@
 
 #ifndef BUILD_DEBUG
 #include <mimalloc.h>
-#include <mimalloc-new-delete.h>
 #endif
 
 #include <gtl/phmap.hpp>
