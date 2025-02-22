@@ -25,9 +25,9 @@ LuaInterface::~LuaInterface() {
 	lua_close(L);
 }
 
-PosMoves LuaInterface::getValidMoves(int player, Position const& position) {
+PosMoves LuaInterface::getValidMoves(Position const& position) {
 	lua_getglobal(L, "moves"); // stack: moves()
-	lua_pushinteger(L, player); // stack: moves, player
+	lua_pushinteger(L, position.player); // stack: moves, player
 
 	lua_createtable(L, position.board.size(), 0); // stack: moves, player, board
 	int index = 1;
@@ -133,45 +133,46 @@ PosMoves LuaInterface::getValidMoves(int player, Position const& position) {
 }
 
 Position LuaInterface::getInitialPosition() {
-    Position pos;
-    lua_getglobal(L, "initial_board");  // Stack: [initial_board]
-    
-    if (!lua_istable(L, -1)) {
-        throw std::runtime_error("initial_board is not a table");
-    }
-    
-    int numPieces = lua_rawlen(L, -1);
-    for (int i = 1; i <= numPieces; i++) {
-        lua_rawgeti(L, -1, i);  // Stack: [initial_board, piece]
-        
-        Piece p;
-        
-        // Get piece type
-        lua_pushstring(L, "piece");  // Stack: [initial_board, piece, "piece"]
-        lua_gettable(L, -2);        // Stack: [initial_board, piece, piece_table]
-        lua_pushstring(L, "type");   // Stack: [initial_board, piece, piece_table, "type"]
-        lua_gettable(L, -2);        // Stack: [initial_board, piece, piece_table, type]
-        p.type = lua_tointeger(L, -1);
-        lua_pop(L, 2);              // Stack: [initial_board, piece]
-        
-        // Get position
-        lua_pushstring(L, "pos");    // Stack: [initial_board, piece, "pos"]
-        lua_gettable(L, -2);        // Stack: [initial_board, piece, pos]
-        lua_pushstring(L, "x");      // Stack: [initial_board, piece, pos, "x"]
-        lua_gettable(L, -2);        // Stack: [initial_board, piece, pos, x]
-        p.c.i = lua_tointeger(L, -1);
-        lua_pop(L, 1);              // Stack: [initial_board, piece, pos]
-        lua_pushstring(L, "y");      // Stack: [initial_board, piece, pos, "y"]
-        lua_gettable(L, -2);        // Stack: [initial_board, piece, pos, y]
-        p.c.j = lua_tointeger(L, -1);
-        lua_pop(L, 2);              // Stack: [initial_board, piece]
-        
-        pos.board.push_back(p);
-        lua_pop(L, 1);              // Stack: [initial_board]
-    }
-    
-    lua_pop(L, 1);                  // Stack: []
-    return pos;
+	Position pos;
+	pos.player = 0; // make customizable?
+	lua_getglobal(L, "initial_board");  // Stack: [initial_board]
+	
+	if (!lua_istable(L, -1)) {
+			throw std::runtime_error("initial_board is not a table");
+	}
+	
+	int numPieces = lua_rawlen(L, -1);
+	for (int i = 1; i <= numPieces; i++) {
+			lua_rawgeti(L, -1, i);  // Stack: [initial_board, piece]
+			
+			Piece p;
+			
+			// Get piece type
+			lua_pushstring(L, "piece");  // Stack: [initial_board, piece, "piece"]
+			lua_gettable(L, -2);        // Stack: [initial_board, piece, piece_table]
+			lua_pushstring(L, "type");   // Stack: [initial_board, piece, piece_table, "type"]
+			lua_gettable(L, -2);        // Stack: [initial_board, piece, piece_table, type]
+			p.type = lua_tointeger(L, -1);
+			lua_pop(L, 2);              // Stack: [initial_board, piece]
+			
+			// Get position
+			lua_pushstring(L, "pos");    // Stack: [initial_board, piece, "pos"]
+			lua_gettable(L, -2);        // Stack: [initial_board, piece, pos]
+			lua_pushstring(L, "x");      // Stack: [initial_board, piece, pos, "x"]
+			lua_gettable(L, -2);        // Stack: [initial_board, piece, pos, x]
+			p.c.i = lua_tointeger(L, -1);
+			lua_pop(L, 1);              // Stack: [initial_board, piece, pos]
+			lua_pushstring(L, "y");      // Stack: [initial_board, piece, pos, "y"]
+			lua_gettable(L, -2);        // Stack: [initial_board, piece, pos, y]
+			p.c.j = lua_tointeger(L, -1);
+			lua_pop(L, 2);              // Stack: [initial_board, piece]
+			
+			pos.board.push_back(p);
+			lua_pop(L, 1);              // Stack: [initial_board]
+	}
+	
+	lua_pop(L, 1);                  // Stack: []
+	return pos;
 }
 
 std::unordered_map<int, std::string> LuaInterface::getPieceNames() {

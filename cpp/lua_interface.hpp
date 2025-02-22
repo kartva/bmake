@@ -20,7 +20,7 @@ struct LuaInterface {
 
 	LuaInterface(std::string const& path);
 	~LuaInterface();
-	PosMoves getValidMoves(int player, Position const& position);
+	PosMoves getValidMoves(Position const& position);
 	void checkLua(int r);
 
 	// Returns the initial board state

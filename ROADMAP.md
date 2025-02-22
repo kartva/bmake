@@ -1,13 +1,13 @@
 # Project Roadmap: Universal Game Engine (36-Hour Hackathon)
 
 ## Phase 1: Core Engine (12 hours)
-- [ ] Game State Management
+- [X] Game State Management
   - Basic board representation
   - Move validation framework
   - Lua integration for game rules
   - Position evaluation interface
 
-- [ ] Lua Rule Interface
+- [X] Lua Rule Interface
   - Function spec: moves(player, position) -> List<Move>
   - Position type: List<(piece_type, position)>
   - Move type: List<(add|remove, piece, position)>

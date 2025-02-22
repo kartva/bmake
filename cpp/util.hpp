@@ -1,21 +1,29 @@
 #pragma once
 
+#include <functional>
 #ifndef BUILD_DEBUG
 #include <mimalloc.h>
 #include <mimalloc-new-delete.h>
 #endif
 
-#ifndef BUILD_DEBUG
 #include <gtl/phmap.hpp>
+
+#ifndef BUILD_DEBUG
 #include <gtl/btree.hpp>
 #include <gtl/vector.hpp>
 
 template<class T>
 using vec = gtl::vector<T, mi_stl_allocator<T>>;
+template<class K, class V>
+using map = gtl::flat_hash_map<K, V, gtl::priv::hash_default_hash<K>,
+	gtl::priv::hash_default_eq<K>,
+	std::allocator<std::pair<const K, V>>>;
 #else
 #include <vector>
 template<class T>
 using vec = std::vector<T>;
+template<class K, class V>
+using map = std::unordered_map<K,V>;
 #endif
 
 struct Coord {
@@ -31,6 +39,7 @@ struct Piece {
 // A position is a board with pieces on it.
 // It represents a state of the game.
 struct Position {
+	int player;
 	vec<Piece> board;
 };
 

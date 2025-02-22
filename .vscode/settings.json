@@ -1,3 +1,6 @@
 {
-    "cmake.sourceDirectory": "/bmake/cpp"
+    "cmake.sourceDirectory": "/bmake/cpp",
+    "files.associations": {
+        "tuple": "cpp"
+    }
 }
