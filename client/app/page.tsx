@@ -1,37 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "../components/util";
-
-const initialBoard = [
-  ["r", "n", "b", "q", "k", "b", "n", "r"],
-  ["p", "p", "p", "p", "p", "p", "p", "p"],
-  ["", "", "", "", "", "", "", ""],
-  ["", "", "", "", "", "", "", ""],
-  ["", "", "", "", "", "", "", ""],
-  ["", "", "", "", "", "", "", ""],
-  ["P", "P", "P", "P", "P", "P", "P", "P"],
-  ["R", "N", "B", "Q", "K", "B", "N", "R"],
-];
+import { CMEditor } from "../components/code_editor";
+import LoadingScreen from "../components/loadingscreen";
+import ChessBoard from "../components/board";
 
 export default function Home() {
-  const [board, setBoard] = useState(initialBoard);
+  const [stage, setStage] = useState<"editor" | "loading" | "chessboard">("editor");
 
-  return (
-    <div className="flex flex-col items-center">
-      <h1 className="text-4xl font-bold mb-4">Chess Board</h1>
-      <div className="grid grid-cols-8 gap-1">
-        {board.map((row, rowIndex) =>
-          row.map((piece, colIndex) => (
-            <Button
-              key={`${rowIndex}-${colIndex}`}
-              className="w-16 h-16"
-            >
-              {piece}
-            </Button>
-          ))
-        )}
-      </div>
-    </div>
-  );
+  const handleEditorSubmit = () => {
+    setStage("loading");
+    setTimeout(() => {
+      setStage("chessboard");
+    }, 2000); // Simulate loading time
+  };
+
+  return <>
+    {stage === "editor" && <CMEditor source="-- write some Lua here" setSource={ (s) => {} } onSubmit={handleEditorSubmit} />}
+    {stage === "loading" && <LoadingScreen />}
+    {stage === "chessboard" && <ChessBoard />}
+  </>;
 }

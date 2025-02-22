@@ -1,0 +1,55 @@
+"use client";
+
+import React, { useState } from "react";
+
+const initialBoard = [
+  ["r", "n", "b", "q", "k", "b", "n", "r"],
+  ["p", "p", "p", "p", "p", "p", "p", "p"],
+  ["", "", "", "", "", "", "", ""],
+  ["", "", "", "", "", "", "", ""],
+  ["", "", "", "", "", "", "", ""],
+  ["", "", "", "", "", "", "", ""],
+  ["P", "P", "P", "P", "P", "P", "P", "P"],
+  ["R", "N", "B", "Q", "K", "B", "N", "R"],
+];
+
+export default function ChessBoard() {
+  const [selectedSquare, setSelectedSquare] = useState<[number, number] | null>(null);
+
+  const handleSquareClick = (rowIndex: number, colIndex: number) => {
+    setSelectedSquare([rowIndex, colIndex]);
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    // Only deselect if clicking the container itself, not a square
+    if (e.target === e.currentTarget) {
+      setSelectedSquare(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center" onClick={handleContainerClick}>
+      <h1 className="text-4xl font-bold mb-4">Chess Board</h1>
+      <div className="grid grid-cols-8 grid-rows-8 gap-[1px] bg-gray-600 p-[1px]">
+        {initialBoard.map((row, rowIndex) =>
+          row.map((piece, colIndex) => {
+            const isAlternateSquare = (rowIndex + colIndex) % 2 === 0;
+            const isSelected = selectedSquare?.[0] === rowIndex && selectedSquare?.[1] === colIndex;
+            return (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className={`w-16 h-16 flex items-center justify-center relative
+                  ${isAlternateSquare ? "bg-gray-700" : "bg-gray-800"}
+                  ${isSelected ? "ring-2 ring-yellow-400 ring-inset" : ""}
+                  hover:ring-2 hover:ring-yellow-400 hover:ring-inset`}
+                onClick={() => handleSquareClick(rowIndex, colIndex)}
+              >
+                {piece}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
