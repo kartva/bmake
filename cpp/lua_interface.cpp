@@ -80,7 +80,7 @@ int board_clone(lua_State* L) {
 	return 1;
 }
 
-LuaInterface::LuaInterface(std::string const& path, int n_, int m_): n(n_), m(m_) {
+LuaInterface::LuaInterface(std::string const& path) {
 	L = luaL_newstate();
 	luaL_openlibs(L);
 	luaL_newmetatable(L, "board");
@@ -94,10 +94,21 @@ LuaInterface::LuaInterface(std::string const& path, int n_, int m_): n(n_), m(m_
 	lua_pop(L, 2);
 
 	check(luaL_dofile(L, path.c_str()));
+
+	lua_getglobal(L, "BOARD_WIDTH");
+	lua_getglobal(L, "BOARD_HEIGHT");
+	
+	if (!lua_isnumber(L, -2) || !lua_isnumber(L, -1)) {
+		throw LuaException("Board dimensions not properly defined");
+	}
+	
+	n = lua_tointeger(L, -2);
+	m = lua_tointeger(L, -1);
+	lua_pop(L, 2);
 }
 
 LuaInterface::~LuaInterface() {
-	lua_close(L);
+	if (L) lua_close(L);
 }
 
 void LuaInterface::push_position(Position const& pos) {
@@ -228,19 +239,9 @@ std::unordered_map<int, std::string> LuaInterface::piece_names() {
 	return names;
 }
 
+// Returns width, height.
 std::pair<int, int> LuaInterface::board_dims() {
-	lua_getglobal(L, "BOARD_WIDTH");
-	lua_getglobal(L, "BOARD_HEIGHT");
-	
-	if (!lua_isnumber(L, -2) || !lua_isnumber(L, -1)) {
-		throw LuaException("Board dimensions not properly defined");
-	}
-	
-	int width = lua_tointeger(L, -2);
-	int height = lua_tointeger(L, -1);
-	lua_pop(L, 2);
-	
-	return {width, height};
+	return {m, n};
 }
 
 void LuaInterface::validate() {

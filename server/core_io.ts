@@ -77,7 +77,7 @@ export class ProcessManager {
 	private encoder = new TextEncoder();
 	
 	constructor(luaPath: string, weightsPath: string) {
-		this.process = new Deno.Command("./cpp/main", {
+		this.process = new Deno.Command("../cpp/build1/main", {
 			args: ["play", luaPath, weightsPath],
 			stdin: "piped",
 			stdout: "piped",
@@ -104,16 +104,16 @@ export class ProcessManager {
 	}
 	
 	async getValidMoves(x: number, y: number): Promise<Move[]> {
-		await this.writeLine(`${x} ${y}`);
+		console.log("getValidMoves");
+		await this.writeLine(`query_valid_moves\n`);
+		await this.writeLine(IOParser.sendCoord({ x, y }));
+
 		const lines = await this.readLines();
 		return IOParser.receiveManyMoves(lines);
 	}
 	
 	async makeMove(move: Move): Promise<void> {
-		const moveStr = 
-			`${move.from.x} ${move.from.y}\n` +
-            `${move.to.x} ${move.to.y}\n` +
-            move.board.join(" ");
+		const moveStr = `move_select\n` + IOParser.sendMove(move);
             
 		await this.writeLine(moveStr);
 	}

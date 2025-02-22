@@ -19,7 +19,11 @@ struct LuaInterface {
 	lua_State* L;
 	int n,m; // Board dimensions found extracted from Lua
 
-	LuaInterface(std::string const& path, int n, int m);
+	LuaInterface(std::string const& path);
+	LuaInterface(LuaInterface& other) = delete;
+	LuaInterface(LuaInterface&& other): L(other.L), n(other.n), m(other.m) {
+		other.L = nullptr;
+	}
 	~LuaInterface();
 
 	void push_position(Position const& position);

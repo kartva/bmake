@@ -8,21 +8,6 @@
 
 using namespace std;
 
-// void applyMove(Position &pos, Move &move) {
-// 	std::map<pair<unsigned char, unsigned char>, int> rem;
-// 	vec<Piece> newBoard;
-// 	for (Piece &p : pos.board) {
-// 		if (p.being_added) newBoard.push_back(p);
-// 		else rem[make_pair(p.c.i, p.c.j)] = 1;
-// 	}
-// 	for (Piece &p : move.add_remove) {
-// 		if (rem.find(make_pair(p.c.i, p.c.j)) == rem.end()) {
-// 			newBoard.push_back(p);
-// 		}
-// 	}
-// 	swap(newBoard, pos.board);
-// }
-
 int main(int argc, char** argv) {
 	stringstream ss;
 	for (int i=1; i<argc; i++) ss<<argv[i]<<" ";
@@ -71,8 +56,22 @@ int main(int argc, char** argv) {
             }
             else if (command == "move_select") {
                 Move move = receiveMove();
-                // applyMove(pos, move);
-				// return server's Move
+                // pos.board <- move.board
+				memcpy(pos.board, move.board, sizeof(pos.board));				
+
+				pos.next_player++;
+				
+				// simple strategy: find the first valid move and perform it
+				vec<Move> out;
+				lua.valid_moves(out, pos);
+				if (out.size() == 0) {
+					cout << "no valid moves" << endl;
+					// TODO: transmit defeat
+				} else {
+					sendMove(out[0]);
+				}
+				pos.next_player--;
+				cout.flush();
             }
         }
 	} else if (ty == "train") {

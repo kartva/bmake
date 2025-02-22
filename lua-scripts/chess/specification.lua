@@ -1,5 +1,9 @@
 --[[
 Type Annotations:
+piece_names: table
+    - key: number
+    - value: string
+
 function type(player: number, position: table)
     - player: 1 for white, 2 for black.
     - position: table array, each element:
@@ -17,13 +21,16 @@ function moves(player: number, position: table): table
         }
 --]]
 
+piece_names = {
+    [0] = ".",
+    [1] = "w",
+    [2] = "b"
+}
+
 BOARD_WIDTH = 1
 BOARD_HEIGHT = 10
 
-print("hello")
-
 function Type(player, position)
-    print(player, position)
     local found = {false, false}
     for j = 1,BOARD_HEIGHT do
         if position.get(1,j) > 0 then
@@ -44,12 +51,8 @@ function Type(player, position)
 end
 
 function Moves(player, position)
-    print("player", player, "position", position, "board")
-
     local out = {}
     for j1=1,BOARD_HEIGHT do
-        print(string.format("j=%i is %i", j1, position.get(1,j1)))
-
         if position.get(1,j1) == player then
             for j=-1,1,1 do
                 if j~=0 and j1+j >= 1 and j1+j <= BOARD_HEIGHT then

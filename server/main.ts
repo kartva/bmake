@@ -41,24 +41,24 @@ async function handle(msg: MessageToServer, ctx: HandleCtx) {
   switch (msg.type) {
     case "query_valid_moves": {
       const { x, y } = msg;
-      // const process = processes.get(ctx.id);
-      // if (!process) throw new Error("No active game");
+      const process = processes.get(ctx.id);
+      if (!process) throw new Error("No active game");
 
-      // const moves = await process.getValidMoves(x, y);
+      const moves = await process.getValidMoves(x, y);
 
-      const moves: Move[] = [];
-      if (board[y * x_dim + x] == 1 || board[y * x_dim + x] == 2) {
-        // create a copy of the board with the change
-        const newBoard = board.slice();
-        newBoard[(board[y * x_dim + x] == 1 ? y + 1 : y - 1) * x_dim + x] = board[y * x_dim + x];
-        newBoard[y * x_dim + x] = 0;
+      // const moves: Move[] = [];
+      // if (board[y * x_dim + x] == 1 || board[y * x_dim + x] == 2) {
+      //   // create a copy of the board with the change
+      //   const newBoard = board.slice();
+      //   newBoard[(board[y * x_dim + x] == 1 ? y + 1 : y - 1) * x_dim + x] = board[y * x_dim + x];
+      //   newBoard[y * x_dim + x] = 0;
 
-        moves.push({
-          from: { y, x },
-          to: { x, y: board[y * x_dim + x] == 1 ? y + 1 : y - 1 },
-          board: newBoard
-        });
-      }
+      //   moves.push({
+      //     from: { y, x },
+      //     to: { x, y: board[y * x_dim + x] == 1 ? y + 1 : y - 1 },
+      //     board: newBoard
+      //   });
+      // }
 
       console.log(moves);
 
@@ -69,24 +69,20 @@ async function handle(msg: MessageToServer, ctx: HandleCtx) {
       break;
     }
     case "start_game": {
-      // const process = new ProcessManager("game.lua", "weights.dat");
-      // processes.set(ctx.id, process);
-      // ctx.dispose.push(() => {
-      //   process.close();
-      //   processes.delete(ctx.id);
-      // });
-      
-      // const state = await process.readInitialState();
-      const state: MessageToClient = {
-        type: "board_info",
-        width: x_dim,
-        height: y_dim,
-        position: {
-          next_player: 1,
-          board
-        },
-        pieceNames
-      };
+      const process = new ProcessManager("../lua-scripts/chess/specification.lua", "../lua-scripts/chess/weights.txt");
+      processes.set(ctx.id, process);
+
+      const state = await process.readInitialState();
+      // const state: MessageToClient = {
+      //   type: "board_info",
+      //   width: x_dim,
+      //   height: y_dim,
+      //   position: {
+      //     next_player: 1,
+      //     board
+      //   },
+      //   pieceNames
+      // };
       ctx.reply(state);
       break;
     }
@@ -99,18 +95,16 @@ async function handle(msg: MessageToServer, ctx: HandleCtx) {
       // // Wait for and forward server's move
       // const serverMove = await process.readServerMove();
 
-      board = move.board;
+      const process = processes.get(ctx.id);
+      if (!process) throw new Error("No active game");
+      await process.makeMove(move);
 
-      const serverMove: Move = {
-        from: { x: 1, y: 1 },
-        to: { x: 1, y: 1 },
-        board
-      };
+      const serverMove = await process.readServerMove();
 
-      setTimeout(() => ctx.reply({
+      ctx.reply({
         type: "server_move_select",
         move: serverMove
-      }), 1000);
+      });
       break;
     }
   }
