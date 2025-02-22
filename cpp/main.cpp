@@ -1,6 +1,6 @@
 #include "util.hpp"
 #include "lua_interface.hpp"
-#include "server_io.cpp"
+#include "server_io.hpp"
 
 #include <sstream>
 #include <fstream>
@@ -8,20 +8,20 @@
 
 using namespace std;
 
-void applyMove(Position &pos, Move &move) {
-	std::map<pair<unsigned char, unsigned char>, int> rem;
-	vec<Piece> newBoard;
-	for (Piece &p : pos.board) {
-		if (p.being_added) newBoard.push_back(p);
-		else rem[make_pair(p.c.i, p.c.j)] = 1;
-	}
-	for (Piece &p : move.add_remove) {
-		if (rem.find(make_pair(p.c.i, p.c.j)) == rem.end()) {
-			newBoard.push_back(p);
-		}
-	}
-	swap(newBoard, pos.board);
-}
+// void applyMove(Position &pos, Move &move) {
+// 	std::map<pair<unsigned char, unsigned char>, int> rem;
+// 	vec<Piece> newBoard;
+// 	for (Piece &p : pos.board) {
+// 		if (p.being_added) newBoard.push_back(p);
+// 		else rem[make_pair(p.c.i, p.c.j)] = 1;
+// 	}
+// 	for (Piece &p : move.add_remove) {
+// 		if (rem.find(make_pair(p.c.i, p.c.j)) == rem.end()) {
+// 			newBoard.push_back(p);
+// 		}
+// 	}
+// 	swap(newBoard, pos.board);
+// }
 
 int main(int argc, char** argv) {
 	stringstream ss;
@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
             }
             else if (command == "move_select") {
                 Move move = receiveMove();
-                applyMove(pos, move);
+                // applyMove(pos, move);
 				// return server's Move
             }
         }

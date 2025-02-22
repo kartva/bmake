@@ -17,7 +17,7 @@ enum class PosType {
 
 struct LuaInterface {
 	lua_State* L;
-	int n,m;
+	int n,m; // Board dimensions found extracted from Lua
 
 	LuaInterface(std::string const& path, int n, int m);
 	~LuaInterface();

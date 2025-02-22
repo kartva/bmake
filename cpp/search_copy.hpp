@@ -76,7 +76,6 @@ constexpr int WINNING = 1e6;
 constexpr int QS = 40;
 constexpr int QS_A = 140;
 constexpr int EVAL_ROUGHNESS = 15;
-constexpr int MIN_DEPTH = 20;
 
 struct SearchState {
 	PosType pos_ty;
@@ -142,9 +141,9 @@ struct Searcher {
 			for (int i=0; i<n; i++) for (int j=0; j<m; j++) pt_pos_hash[pt][i*m + j]=rng();
 		}
 
-		depth_hash.resize(max_depth+MIN_DEPTH+1);
-		for (int i=-MIN_DEPTH; i<=max_depth; i++) {
-			depth_hash[i+MIN_DEPTH] = rng();
+		depth_hash.resize(max_depth+1);
+		for (int i=0; i<=max_depth; i++) {
+			depth_hash[i] = rng();
 		}
 	}
 
@@ -252,6 +251,11 @@ struct Searcher {
 					if (--parent->n_wait <= 0) parent->wait.notify_all();
 				};
 
+				if (s.pos_ty!=PosType::Other) {
+					update_parent(s.score);
+					continue;
+				}
+
 				bool ex = parent && parent->kill_children.test();
 				if (ex) s.kill_children.notify_all();
 				while (s.n_wait>0) s.wait.wait(self_lock);
@@ -277,7 +281,7 @@ struct Searcher {
 				}
 
 				std::optional<int> upd;
-				uint64_t k = s.hash^depth_hash[MIN_DEPTH+s.depth];
+				uint64_t k = s.hash^depth_hash[s.depth];
 
 				cache.if_contains(k, [g,&upd](std::pair<const uint64_t,SearchStateCache> const& kv){
 					if (kv.second.lo>=g) upd=kv.second.lo;
@@ -289,7 +293,7 @@ struct Searcher {
 					continue;
 				}
 
-				if ((s.depth<=0 && s.score>=g) || s.depth<=-MIN_DEPTH) {
+				if (s.depth<=0 && s.score>=g) {
 					update_parent(s.score);
 					continue;
 				}
@@ -324,9 +328,9 @@ struct Searcher {
 
 					auto pos_type = lua.get_pos_type(s.pos);
 					auto& new_state = tmp.emplace_back(
-						n_move, std::make_unique<SearchState>(
+						n_move++, std::make_unique<SearchState>(
 							pos_type, s.pos, s.hash,
-							s.score, n_move, s.depth-1
+							s.score, -1, s.depth-1
 						)
 					).second;
 						
@@ -335,8 +339,6 @@ struct Searcher {
 					else if (pos_type==PosType::Draw) new_state->score = 0;
 
 					change(s, move);
-
-					n_move++;
 				}
 
 				auto tmp_it = tmp.begin();

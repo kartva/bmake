@@ -29,6 +29,10 @@ constexpr int MAX_BOARD_SIZE=64;
 
 struct Coord {
 	unsigned char i,j;
+
+	bool operator==(Coord const& b) const {
+		return i==b.i && j==b.j;
+	}
 };
 
 // A position is a board with pieces on it.

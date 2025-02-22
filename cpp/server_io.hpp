@@ -32,12 +32,12 @@ void receiveBoard(unsigned char board[MAX_BOARD_SIZE]) {
 }
 
 void sendPosition(const Position& pos) {
-    cout << pos.next_move_player << "\n";
+    cout << pos.next_player << "\n";
     sendBoard(pos.board);
 }
 
 void receivePosition(Position& pos) {
-    cin >> pos.next_move_player;
+    cin >> pos.next_player;
     receiveBoard(pos.board);
 }
 
