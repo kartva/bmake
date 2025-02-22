@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.ReactCollapse--collapse {
+  transition: height 500ms;
+}
+
+@keyframes moveInBottom {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.move-in-bottom {
+  animation: moveInBottom 0.5s ease-out forwards;
+}

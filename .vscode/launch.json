@@ -1,0 +1,32 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"request": "launch",
+			"name": "Server",
+			"type": "node",
+			"program": "${workspaceFolder}/server/main.ts",
+			"cwd": "${workspaceFolder}/server",
+			"env": {},
+			"runtimeExecutable": "deno",
+			"envFile": "${workspaceFolder}/server/.env",
+			"runtimeArgs": [
+				"run",
+				"--allow-all",
+				"--unstable-kv"
+			],
+			"console": "integratedTerminal",
+			"attachSimplePort": 9229
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug C++",
+			"program": "${workspaceFolder}/cpp/build/main",
+			"cwd": "${workspaceFolder}/cpp",
+			"preLaunchTask": "Build C++",
+			// leaksanitizer doesn't work when debugger hogs ptrace
+			"env": { "ASAN_OPTIONS": "detect_leaks=0" }
+		}
+	]
+}
