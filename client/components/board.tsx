@@ -11,19 +11,21 @@ export default function ChessBoard() {
   const [validMoves, setValidMoves] = useState<Move[]>([]);
   const [board, setBoard] = useState<string[][]>(EmptyBoard);
   const [pieceNames, setPieceNames] = useState<Record<number, string>>({});
-  const [boardInfo, setBoardInfo] = useState<MessageToClient | null>(null);
+  const [boardInfo, setBoardInfo] = useState<Extract<MessageToClient, { type: "board_info" }> | null>(null);
+  const [isServerThinking, setIsServerThinking] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
-  useEffect(() => {
-    if (boardInfo != null && boardInfo.type == "board_info" && Object.keys(pieceNames).length > 0) {
-      const newBoard = Array(boardInfo.height).fill(null).map(() => Array(boardInfo.width).fill(""));
-      boardInfo.pieces.forEach((piece: Piece) => {
-        newBoard[piece.pos.y - 1][piece.pos.x - 1] = pieceNames[piece.type];
-      });
-      setBoard(newBoard);
-      setBoardInfo(null); // Clear stored board info
+  const FlatNumberTo2DStringBoard = (arr: number[], width: number) => {
+    // truncate arr to board length
+    arr = arr.slice(0, width * boardInfo!.height);
+    const string_arr = arr.map((pt: number) => pieceNames[pt]);
+    const newArr: string[][] = [];
+    for (let i = 0; i < string_arr.length; i += width) {
+      newArr.push(string_arr.slice(i, i + width));
     }
-  }, [pieceNames, boardInfo]);
+    console.log(newArr);
+    return newArr;
+  }
 
   useEffect(() => {
     wsRef.current = new WebSocket(new URL("/play", process.env.NEXT_PUBLIC_SERVER_URL));
@@ -39,6 +41,11 @@ export default function ChessBoard() {
         case "board_info": {
           setPieceNames(msg.pieceNames);
           setBoardInfo(msg); // Store board info for processing after pieceNames updates
+          break;
+        }
+        case "server_move_select": {
+          boardInfo!.position.board = msg.move.board;
+          setIsServerThinking(false);
           break;
         }
       }
@@ -61,9 +68,31 @@ export default function ChessBoard() {
     }));
   };
 
+  const handleMoveSelect = async (move: Move) => {
+    wsRef.current?.send(JSON.stringify({
+      type: "move_select",
+      move
+    }));
+
+    boardInfo!.position.board = move.board;
+    setSelectedSquare(null);
+    setValidMoves([]);
+    setIsServerThinking(true);
+  };
+
   const handleSquareClick = async (rowIndex: number, colIndex: number) => {
+    if (selectedSquare) {
+      // Check if clicked square is a valid move target
+      const targetMove = validMoves.find(
+        move => move.to.x === colIndex && move.to.y === rowIndex
+      );
+      if (targetMove) {
+        await handleMoveSelect(targetMove);
+        return;
+      }
+    }
     setSelectedSquare([rowIndex, colIndex]);
-    await fetchValidMoves(colIndex, rowIndex); // Note: x = colIndex, y = rowIndex
+    await fetchValidMoves(colIndex, rowIndex);
   };
 
   const handleContainerClick = (e: React.MouseEvent) => {
@@ -77,30 +106,41 @@ export default function ChessBoard() {
   return (
     <div className="flex flex-col items-center" onClick={handleContainerClick}>
       <h1 className="text-4xl font-bold mb-4">Chess Board</h1>
-      <div className={`grid grid-cols-8 grid-rows-8 gap-[1px] bg-gray-600 p-[1px]`}>
-        {board.map((row, rowIndex) =>
-          row.map((piece, colIndex) => {
-            const isAlternateSquare = (rowIndex + colIndex) % 2 === 0;
-            const isSelected = selectedSquare?.[0] === rowIndex && selectedSquare?.[1] === colIndex;
-            const isValidMoveTarget = validMoves.some(move => move.to.x === colIndex + 1 && move.to.y === rowIndex + 1);
+      {boardInfo && boardInfo.type == "board_info" && (
+        <div 
+          className="grid gap-[1px] bg-gray-600 p-[1px]"
+          style={{
+            gridTemplateColumns: `repeat(${boardInfo.width}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${boardInfo.height}, minmax(0, 1fr))`
+          }}
+        >
+          {FlatNumberTo2DStringBoard(boardInfo.position.board, boardInfo.width).map((row, rowIndex) =>
+            row.map((piece, colIndex) => {
+              const isAlternateSquare = (rowIndex + colIndex) % 2 === 0;
+              const isSelected = selectedSquare?.[0] === rowIndex && selectedSquare?.[1] === colIndex;
+              const isValidMoveTarget = validMoves.some(move => move.to.x === colIndex && move.to.y === rowIndex);
 
-            return (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                className={`w-16 h-16 flex items-center justify-center relative
-                  ${isAlternateSquare ? "bg-gray-700" : "bg-gray-800"}
-                  ${isSelected ? "ring-2 ring-yellow-400 ring-inset" : ""}
-                  ${isSelected && isLoading ? "opacity-50" : ""}
-                  ${isValidMoveTarget ? "after:absolute after:inset-0 after:bg-yellow-400 after:opacity-30" : ""}
-                  hover:ring-2 hover:ring-yellow-400 hover:ring-inset`}
-                onClick={() => handleSquareClick(rowIndex, colIndex)}
-              >
-                {piece}
-              </div>
-            );
-          })
-        )}
-      </div>
+              return (
+                <div
+                  key={`${rowIndex}-${colIndex}`}
+                  className={`w-16 h-16 flex items-center justify-center relative
+                    ${isAlternateSquare ? "bg-gray-700" : "bg-gray-800"}
+                    ${isSelected ? "ring-2 ring-yellow-400 ring-inset" : ""}
+                    ${isSelected && isLoading ? "opacity-50" : ""}
+                    ${isValidMoveTarget ? "after:absolute after:inset-0 after:bg-yellow-400 after:opacity-30" : ""}
+                    hover:ring-2 hover:ring-yellow-400 hover:ring-inset`}
+                  onClick={() => handleSquareClick(rowIndex, colIndex)}
+                >
+                  {piece}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+      {isServerThinking && (
+        <div className="mt-4 text-2xl">🕐</div>
+      )}
     </div>
   );
 }

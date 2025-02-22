@@ -4,92 +4,70 @@
  * with the engine subprocess.
  */
 
-import { MessageToClient, Piece, Move, Coordinate, PieceChange } from "../shared.ts";
+import { MessageToClient, Piece, Move, Coordinate, Position } from "../shared.ts";
+
+interface BoardDimensions {
+    width: number;
+    height: number;
+}
 
 class IOParser {
-	private static parseCoordinate(x: string, y: string): Coordinate {
-		return {
-			x: parseInt(x),
-			y: parseInt(y)
-		};
-	}
-	
-	private static parsePiece(type: string, x: string, y: string): Piece {
-		return {
-			type: parseInt(type),
-			pos: this.parseCoordinate(x, y)
-		};
+	static receiveCoord(line: string): Coordinate {
+		const [x, y] = line.split(" ").map(Number);
+		return { x, y };
 	}
 
-	private static parsePieceChange(type: string, x: string, y: string, being_added: string): PieceChange {
-		return {
-			piece: this.parsePiece(type, x, y),
-			being_added: being_added === "1"
-		};
+	static sendCoord(coord: Coordinate): string {
+		return `${coord.x} ${coord.y}\n`;
 	}
-	
-	static parseMove(lines: string[]): Move {
-		let currentLine = 0;
-		const [fromX, fromY, toX, toY] = lines[currentLine++].split(" ").map(Number);
-		const numPieces = parseInt(lines[currentLine++]);
-		const pieces: PieceChange[] = [];
 
-		for (let i = 0; i < numPieces; i++) {
-			const [type, x, y, being_added] = lines[currentLine++].split(" ");
-			pieces.push(IOParser.parsePieceChange(type, x, y, being_added));
-		}
-
-		return {
-			from: { x: fromX, y: fromY },
-			to: { x: toX, y: toY },
-			pieces
-		};
+	static sendBoard(board: number[]): string {
+		return board.join(" ") + "\n";
 	}
-	
-	static parseBoardInfo(lines: string[]): MessageToClient {
-		const [width, height, numPieces] = lines[0].split(" ").map(Number);
-		const pieces: Piece[] = [];
-		let currentLine = 1;
-		
-		for (let i = 0; i < numPieces; i++) {
-			const [type, x, y] = lines[currentLine++].split(" ");
-			pieces.push(this.parsePiece(type, x, y));
-		}
-		
-		const numPieceTypes = parseInt(lines[currentLine++]);
+
+	static receiveBoard(line: string): number[] {
+		return line.split(" ").map(Number);
+	}
+
+	static sendPosition(position: Position): string {
+		return `${position.next_player}\n${IOParser.sendBoard(position.board)}`;
+	}
+
+	static receivePosition(lines: string[]): Position {
+		const next_player = lines[0].split(" ").map(Number)[0];
+		const board = IOParser.receiveBoard(lines[1]);
+		return { next_player, board };
+	}
+
+	static sendMove(move: Move): string {
+		return IOParser.sendCoord(move.from) + IOParser.sendCoord(move.to) + IOParser.sendBoard(move.board);
+	}
+
+	static receiveMove(lines: string[]): Move {
+		const from = IOParser.receiveCoord(lines[0]);
+		const to = IOParser.receiveCoord(lines[1]);
+		const board = IOParser.receiveBoard(lines[2]);
+		return { from, to, board };
+	}
+
+	static parseIntroInfor(lines: string[]): MessageToClient {
+		const [width, height] = lines[0].split(" ").map(Number);
+		const position = IOParser.receivePosition(lines.slice(1));
+		// parse a number:string array formatted as number string\n number string...
 		const pieceNames: Record<number, string> = {};
-		for (let i = 0; i < numPieceTypes; i++) {
-			const [type, name] = lines[currentLine++].split(" ");
-			pieceNames[parseInt(type)] = name;
+		for (let i = 0; i < lines.length; i += 1) {
+			const [type, name] = lines[i].split(" ");
+			pieceNames[Number(type)] = name;
 		}
-		
-		return {
-			type: "board_info",
-			width,
-			height,
-			pieces,
-			pieceNames
-		};
+		return { type: "board_info", width, height, position, pieceNames };
 	}
-	
-	static parseValidMoves(lines: string[], fromX: number, fromY: number): Move[] {
-		return lines.filter(line => line.trim())
-		.map(line => {
-			const [toX, toY] = line.split(" ");
-			return {
-				from: { x: fromX, y: fromY },
-				to: this.parseCoordinate(toX, toY),
-				pieces: [
-					{ 
-						piece: {
-							pos: this.parseCoordinate(toX, toY),
-							type: 0
-						},
-						being_added: false
-					}
-				]
-			};
-		});
+
+	static receiveManyMoves(lines: string[]): Move[] {
+		const moves: Move[] = [];
+		for (let i = 0; i < lines.length; i += 3) {
+			moves.push(this.receiveMove(lines.slice(i, i + 3)));
+		}
+		return moves;
 	}
 }
 
@@ -122,27 +100,41 @@ export class ProcessManager {
 	
 	async readInitialState(): Promise<MessageToClient> {
 		const lines = await this.readLines();
-		return IOParser.parseBoardInfo(lines);
+		return IOParser.parseIntroInfor(lines);
 	}
 	
 	async getValidMoves(x: number, y: number): Promise<Move[]> {
 		await this.writeLine(`${x} ${y}`);
 		const lines = await this.readLines();
-		return IOParser.parseValidMoves(lines, x, y);
+		return IOParser.receiveManyMoves(lines);
 	}
 	
 	async makeMove(move: Move): Promise<void> {
 		const moveStr = 
-			`${move.from.x} ${move.from.y} ${move.to.x} ${move.to.y}\n` +
-			`${move.pieces.length}\n` +
-			move.pieces.map(p => 
-				`${p.piece.type} ${p.piece.pos.x} ${p.piece.pos.y} ${p.being_added ? 1 : 0}`
-			).join("\n");
-		
+			`${move.from.x} ${move.from.y}\n` +
+            `${move.to.x} ${move.to.y}\n` +
+            move.board.join(" ");
+            
 		await this.writeLine(moveStr);
+	}
+	
+	async readServerMove(): Promise<Move> {
+		const lines = await this.readLines();
+		return IOParser.receiveMove(lines);
 	}
 	
 	async close() {
 		this.process.kill();
 	}
+}
+
+export function getIndex(x: number, y: number, width: number): number {
+    return y * width + x;
+}
+
+export function getCoord(index: number, width: number): Coordinate {
+    return {
+        x: index % width,
+        y: Math.floor(index / width)
+    };
 }

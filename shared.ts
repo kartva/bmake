@@ -1,3 +1,5 @@
+export const MaxBoardSize = 64;
+
 export type Coordinate = {
     x: number,
     y: number
@@ -8,15 +10,15 @@ export type Piece = {
     pos: Coordinate
 };
 
-export type PieceChange = {
-    piece: Piece,
-    being_added: boolean
-};
+export type Position = {
+    next_player: number;
+    board: number[];
+}
 
 export type Move = {
     from: Coordinate,
     to: Coordinate,
-    pieces: PieceChange[]
+    board: number[]
 };
 
 export type MessageToClient = {
@@ -29,8 +31,11 @@ export type MessageToClient = {
     type: "board_info",
     width: number,
     height: number,
-    pieces: Piece[],
+    position: Position,
     pieceNames: Record<number, string>
+} | {
+    type: "server_move_select",
+    move: Move
 };
 
 export type MessageToServer = {
