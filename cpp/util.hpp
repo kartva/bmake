@@ -25,21 +25,19 @@ template<class K, class V>
 using map = std::unordered_map<K,V>;
 #endif
 
+constexpr int MAX_BOARD_SIZE=64;
+
 struct Coord {
 	unsigned char i,j;
 };
 
-struct Piece {
-	unsigned char type;
-	Coord c;
-	bool being_added;
-};
-
 // A position is a board with pieces on it.
 // It represents a state of the game.
+// row major (i.e. indexed with i*m + j)
 struct Position {
-	int player;
-	vec<Piece> board;
+	// player who is going to make a move, 0 indexed (+1 before used for lua)
+	int next_player;
+	unsigned char board[MAX_BOARD_SIZE];
 };
 
 // A move consists of:
@@ -48,5 +46,5 @@ struct Position {
 // Handle the case when from == to.
 struct Move {
 	Coord from, to;
-	vec<Piece> add_remove;
+	unsigned char board[MAX_BOARD_SIZE];
 };

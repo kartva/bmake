@@ -101,7 +101,6 @@ struct SearchState {
 
 struct SearchStateCache {
 	// lo <= optimal score <= hi
-	std::mutex mut;
 	int lo, hi;
 	SearchStateCache(): lo(LOSING), hi(WINNING) {}
 };
@@ -116,7 +115,7 @@ using SearchAlloc = mi_stl_allocator<std::pair<uint64_t, V>>;
 
 struct Searcher {
 	int max_pty, n, m, max_depth;
-	vec<vec<vec<uint64_t>>> pt_pos_hash;
+	vec<vec<uint64_t>> pt_pos_hash;
 	vec<uint64_t> depth_hash;
 
 	Pool pool;
@@ -136,10 +135,10 @@ struct Searcher {
 		std::mt19937_64 rng(123);
 		player_hash = rng();
 
-		pt_pos_hash.resize(max_pty);
-		for (int pt=0; pt<max_pty; pt++) {
-			pt_pos_hash[pt].assign(n, vec<uint64_t>(m));
-			for (int i=0; i<n; i++) for (int j=0; j<m; j++) pt_pos_hash[pt][i][j]=rng();
+		pt_pos_hash.resize(max_pty+1);
+		for (int pt=0; pt<=max_pty; pt++) {
+			pt_pos_hash[pt].resize(n*m);
+			for (int i=0; i<n; i++) for (int j=0; j<m; j++) pt_pos_hash[pt][i*m + j]=rng();
 		}
 
 		depth_hash.resize(max_depth+1);
@@ -150,39 +149,36 @@ struct Searcher {
 
 	uint64_t hash(Position& pos) {
 		uint64_t o=0;
-		if (pos.player) o^=player_hash;
-		for (auto p: pos.board) {
-			o^=pt_pos_hash[p.type][p.c.i][p.c.j];
+		if (pos.next_player) o^=player_hash;
+		for (int i=0; i<n*m; i++) {
+			o^=pt_pos_hash[pos.board[i]][i];
 		}
+
 		return o;
 	}
 
-	void change(SearchState& state, Piece p, bool undo) {
+	void change(SearchState& state, Move& move) {
 		auto& pos = state.pos;
-		state.hash^=pt_pos_hash[p.type][p.c.i][p.c.j]^player_hash;
-
-		if (p.being_added^undo) {
-			pos.board.push_back(p);
-		} else {
-			for (int idx=0; idx<pos.board.size(); idx++) {
-				auto& p2 = pos.board[idx];
-				if (p2.type == p.type && p2.c.i==p.c.i && p2.c.j==p.c.j) {
-					std::swap(pos.board[idx], pos.board[pos.board.size()-1]);
-					break;
-				}
+		state.hash^=player_hash;
+		
+		for (int i=0; i<n*m; i++) {
+			if (move.board[i] != pos.board[i]) {
+				state.hash^=pt_pos_hash[pos.board[i]][i]^pt_pos_hash[move.board[i]][i];
+				std::swap(move.board[i], pos.board[i]);
 			}
-
-			pos.board.pop_back();
 		}
 
-		state.pos.player^=1;
+		state.pos.next_player^=1;
 		state.score = score(state.pos); //FIXME: optimize when replace with nnue
 	}
 
 	int score(Position& pos) {
 		int o=0;
-		for (auto p: pos.board)
-			o+=pst[p.type][(pos.player ? 8-p.c.i : p.c.i) + n*p.c.j];
+		for (int i=0; i<n; i++) for (int j=0; j<m; j++) {
+			int x = i*m+j;
+			if (pos.board[x])
+				o+=pst[pos.board[x]-1][(pos.next_player ? 8-i : i)*m + j];
+		}
 		return o;
 	}
 
@@ -190,12 +186,12 @@ struct Searcher {
 	// fails low: <gamma
 	// fails high: >=gamma+1
 	std::optional<std::pair<Move, int>> bound(int gamma, int depth) {
-		int init_player = current.player;
+		int init_player = current.next_player;
 
 		std::mutex mut;
 		vec<std::unique_ptr<SearchState>> stack;
 
-		LuaInterface lua(lua_path);
+		LuaInterface lua(lua_path,n,m);
 		auto init = std::make_unique<SearchState>(
 			lua.get_pos_type(current), current, hash(current),
 			score(current), -1, depth
@@ -212,9 +208,9 @@ struct Searcher {
 		pool.launch_all([&](int _ti) {
 			vec<Move> moves;
 			vec<std::pair<int,std::unique_ptr<SearchState>>> tmp;
-			LuaInterface lua(lua_path);
+			LuaInterface lua(lua_path,n,m);
 
-			std::unique_lock lock(mut);
+			std::unique_lock lock(mut, std::defer_lock_t());
 			while (true) {
 				lock.lock();
 				if (stack.empty()) return;
@@ -225,7 +221,7 @@ struct Searcher {
 				SearchState* parent = s.parent==-1 ? nullptr : stack[s.parent].get();
 				lock.unlock();
 
-				int g = s.pos.player==init_player ? 1-gamma : gamma;
+				int g = s.pos.next_player==init_player ? 1-gamma : gamma;
 
 				auto update_parent = [&](int x) {
 					assert(parent);
@@ -237,20 +233,30 @@ struct Searcher {
 						parent->best=x;
 						parent->best_move_i=s.move_i;
 
-						int g_parent = s.pos.player==init_player ? 1-gamma : gamma;
+						int g_parent = s.pos.next_player==init_player ? 1-gamma : gamma;
 						if (x>g_parent) {
 							parent->kill_children.notify_all();
 						}
 					}
 
-					auto& entry = cache[s.hash^depth_hash[s.depth]];
-					if (x<g) entry.lo = std::max(entry.lo, x);
-					else entry.hi = std::min(entry.hi, x);
+					uint64_t k = s.hash^depth_hash[s.depth];
+
+					cache.emplace(k, SearchStateCache());
+					cache.modify_if(k, [x,g](std::pair<const uint64_t,SearchStateCache>& kv){
+						auto& v = kv.second;
+						if (x<g) v.lo = std::max(v.lo, x);
+						else v.hi = std::min(v.hi, x);
+					});
 
 					if (--parent->n_wait <= 0) parent->wait.notify_all();
 				};
 
-				bool ex = parent->kill_children.test();
+				if (s.pos_ty!=PosType::Other) {
+					update_parent(s.score);
+					continue;
+				}
+
+				bool ex = parent && parent->kill_children.test();
 				if (ex) s.kill_children.notify_all();
 				while (s.n_wait>0) s.wait.wait(self_lock);
 
@@ -274,11 +280,17 @@ struct Searcher {
 					continue;
 				}
 
-				auto it = cache.find(s.hash^depth_hash[s.depth]);
-				if (it!=cache.end()) {
-					std::unique_lock lck2(it->second.mut);
-					if (it->second.lo>=g) {update_parent(it->second.lo); continue;}
-					if (it->second.hi<g) {update_parent(it->second.hi); continue;}
+				std::optional<int> upd;
+				uint64_t k = s.hash^depth_hash[s.depth];
+
+				cache.if_contains(k, [g,&upd](std::pair<const uint64_t,SearchStateCache> const& kv){
+					if (kv.second.lo>=g) upd=kv.second.lo;
+					else if (kv.second.hi<g) upd=kv.second.hi;
+				});
+
+				if (upd) {
+					update_parent(*upd);
+					continue;
 				}
 
 				if (s.depth<=0 && s.score>=g) {
@@ -305,19 +317,20 @@ struct Searcher {
 					continue;
 				}
 				
-				if (s.pos_ty!=PosType::Other) {
-					lua.valid_moves(moves, s.pos);
-				}
+				moves.clear();
+				lua.valid_moves(moves, s.pos);
 
 				tmp.clear();
 				int n_move=0;
+				assert(!moves.empty());
 				for (auto& move: moves) {
-					for (auto p: move.add_remove) change(s, p, false);
+					change(s, move);
 
 					auto pos_type = lua.get_pos_type(s.pos);
 					auto& new_state = tmp.emplace_back(
 						n_move++, std::make_unique<SearchState>(
-							pos_type, s.pos, s.hash, s.score, -1, s.depth-3
+							pos_type, s.pos, s.hash,
+							s.score, -1, s.depth-1
 						)
 					).second;
 						
@@ -325,7 +338,7 @@ struct Searcher {
 					else if (pos_type==PosType::Loss) new_state->score = LOSING;
 					else if (pos_type==PosType::Draw) new_state->score = 0;
 
-					for (auto p: move.add_remove) change(s, p, true);
+					change(s, move);
 				}
 
 				auto tmp_it = tmp.begin();
@@ -341,15 +354,18 @@ struct Searcher {
 					}
 				);
 
-				int min_score = s.score + QS - QS_A*s.depth;
+				int min_score = INT_MIN;//s.score + QS - QS_A*s.depth;
 
 				lock.lock();
 				int si = stack.size();
 				stack.push_back(std::move(state));
 				s.visited=true;
+				s.n_wait=0;
 
+				bool got_move=false;
 				for (auto& new_state: tmp) {
-					if (new_state.second->score < min_score) break;
+					if (got_move && new_state.second->score < min_score) break;
+					got_move=true;
 
 					if (s.depth<=1 && new_state.second->score < g) {
 						s.best = new_state.second->score;
@@ -378,7 +394,7 @@ struct Searcher {
 		std::optional<Move> best;
 		bool tle=false;
 
-		for (int depth=0; !tle && depth<10000; depth++) {
+		for (int depth=5; !tle && depth<=max_depth; depth++) {
 			auto now = std::chrono::steady_clock::now();
 
 			std::optional<Move> best2;

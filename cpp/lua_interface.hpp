@@ -1,7 +1,12 @@
 #pragma once
 
+extern "C" {
+	#include "lauxlib.h"
+	#include "lua.h"
+	#include "lualib.h"
+}
+
 #include "util.hpp"
-#include "lua.h"
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -12,8 +17,9 @@ enum class PosType {
 
 struct LuaInterface {
 	lua_State* L;
+	int n,m;
 
-	LuaInterface(std::string const& path);
+	LuaInterface(std::string const& path, int n, int m);
 	~LuaInterface();
 
 	void push_position(Position const& position);

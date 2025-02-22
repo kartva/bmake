@@ -21,6 +21,14 @@
 		{
 			"type": "lldb",
 			"request": "launch",
+			"name": "Debug (search test)",
+			"program": "${workspaceFolder}/cpp/build/searchtest",
+			"cwd": "${workspaceFolder}/cpp",
+			"preLaunchTask": "Build Search",
+			"env": { "ASAN_OPTIONS": "detect_leaks=0" }
+		}, {
+			"type": "lldb",
+			"request": "launch",
 			"name": "Debug C++",
 			"program": "${workspaceFolder}/cpp/build/main",
 			"cwd": "${workspaceFolder}/cpp",

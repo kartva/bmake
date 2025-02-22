@@ -16,6 +16,14 @@
 			"problemMatcher": []
 		},
 		{
+			"label": "Build Search",
+			"group": "build",
+			"type": "shell",
+			"command": "cmake --build ./build --target searchtest",
+			"options": {"cwd": "${workspaceFolder}/cpp"},
+			"problemMatcher": ["$gcc"]
+		},
+		{
 			"label": "Build C++",
 			"group": "build",
 			"type": "shell",

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(minesweeper CXX)
+project(cpp CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set(CMAKE_CXX_STANDARD 23)
@@ -35,14 +35,17 @@ FetchContent_MakeAvailable(gtl)
 
 # FetchContent_MakeAvailable(cereal) 
 
+add_executable(searchtest search_test.cpp lua_interface.cpp)
 add_executable(main main.cpp lua_interface.cpp server_io.cpp)
 add_executable(nn nn.cpp)
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(LUA REQUIRED lua5.4)
+find_package(Lua REQUIRED)
 
-target_link_libraries(main PUBLIC gtl ${LUA_STATIC_LIBRARY_DIRS})
-target_include_directories(main PUBLIC ${LUA_INCLUDE_DIRS})
+target_link_libraries(main PUBLIC gtl ${LUA_LIBRARY})
+target_include_directories(main PUBLIC ${LUA_INCLUDE_DIR})
+
+target_link_libraries(searchtest PUBLIC ${LUA_LIBRARY} gtl)
+target_include_directories(searchtest PUBLIC ${LUA_INCLUDE_DIR})
 
 if (CMAKE_BUILD_TYPE MATCHES Release)
     find_package(mimalloc 2.1 REQUIRED)

@@ -9,14 +9,14 @@
 using namespace std;
 
 void applyMove(Position &pos, Move &move) {
-	std::map<Coord, int> rem;
+	std::map<pair<unsigned char, unsigned char>, int> rem;
 	vec<Piece> newBoard;
 	for (Piece &p : pos.board) {
 		if (p.being_added) newBoard.push_back(p);
-		else rem[p.c] = 1;
+		else rem[make_pair(p.c.i, p.c.j)] = 1;
 	}
 	for (Piece &p : move.add_remove) {
-		if (rem.find(p.c) == rem.end()) {
+		if (rem.find(make_pair(p.c.i, p.c.j)) == rem.end()) {
 			newBoard.push_back(p);
 		}
 	}
@@ -59,14 +59,20 @@ int main(int argc, char** argv) {
         string command;
         while (cin >> command) {
             if (command == "query_valid_moves") {
+				Coord c = receiveCoord();
 				vec<Move> out;
 				lua.valid_moves(out, pos);
-                sendListOfMoves(out);
+				for (Move &m : out) {
+					if (m.from == c) {
+						sendMove(m);
+					}
+				}
                 cout.flush();
             }
             else if (command == "move_select") {
                 Move move = receiveMove();
                 applyMove(pos, move);
+				// return server's Move
             }
         }
 	} else if (ty == "train") {
