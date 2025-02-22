@@ -4,6 +4,28 @@ import { MessageToClient, MessageToServer, Coordinate, Move, Piece, ServerRespon
 import { WSContext } from "jsr:@hono/hono/ws";
 import { ProcessManager } from "./core_io.ts";
 
+// WebSocket Message Flow:
+// 1. Client connects via WebSocket
+// 2. Client sends "submit_lua" with Lua source code
+//    - Server spawns C++ process with "play" mode
+//    - Server creates temp files for Lua and weights
+//    - C++ process validates Lua and responds with "validated"
+//    - Server tells C++ process to "start_training"
+//    - C++ process loads model and responds with "loaded"
+//    - Server redirects client to board page
+// 3. Client sends "start_game"
+//    - C++ process sends initial board state
+//    - Server sends "board_info" to client
+// 4. Game loop:
+//    a. Client sends "query_valid_moves" with coordinates
+//       - C++ process calculates valid moves for piece
+//       - Server forwards moves to client
+//    b. Client sends "move_select" with chosen move
+//       - C++ process updates board state
+//       - C++ process calculates and makes AI move
+//       - Server sends "server_move_select" to client
+//    c. Repeat from 4a until game ends
+
 const app = new Hono()
 
 const kv = await Deno.openKv("./db");
@@ -16,49 +38,51 @@ type HandleCtx = {
 
 const processes = new Map<string, ProcessManager>();
 
-let board = new Array(64).fill(0);
-const [x_dim , y_dim] = [5, 5];
-// fill the first row with pawns
-for (let i = 0; i < y_dim; i++) {
-  board[i] = 1;
-}
-// fill the last row with pawns
-for (let i = 0; i < y_dim; i++) {
-  board[(y_dim - 1) * x_dim + i] = 2;
-}
-
-const pieceNames: Record<number, string> = {
-  0: "",
-  1: "pawn",
-  2: "rook",
-  3: "knight",
-  4: "bishop",
-  5: "queen",
-  6: "king"
-};
-
 async function handle(msg: MessageToServer, ctx: HandleCtx) {
   switch (msg.type) {
+    case "submit_lua": {
+      const { src } = msg;
+      // save the lua script to a temp file
+
+      const luaFilePath = await Deno.makeTempFile();
+      await Deno.writeTextFile(luaFilePath, src);
+      const weightsFilePath = await Deno.makeTempFile();
+      await Deno.writeTextFile(weightsFilePath, "");
+
+      const process = new ProcessManager(luaFilePath, weightsFilePath);
+      processes.set(ctx.id, process);
+
+      if (!process) throw new Error("No active game");
+      // wait for process to either output "validated" or exit with non-zero code
+      const response = await process.validateLuaAndStartTraining();
+      if (response.type == "lua_validated" && response.status != "ok") {
+        console.warn("Lua validation failed");
+        processes.delete(ctx.id);
+        ctx.reply(response);
+        break;
+      }
+        
+      process.triggerOnStdoutput((_msg) => {
+        ctx.reply({ type: "model_loaded" });
+      });
+      break;
+    }
+    case "start_game": {
+      const process = processes.get(ctx.id);
+      if (!process) {
+        throw new Error("No active game");
+      }
+
+      const state = await process.readInitialState();
+      ctx.reply(state);
+      break;
+    }
     case "query_valid_moves": {
       const { x, y } = msg;
       const process = processes.get(ctx.id);
       if (!process) throw new Error("No active game");
 
       const moves = await process.getValidMoves(x, y);
-
-      // const moves: Move[] = [];
-      // if (board[y * x_dim + x] == 1 || board[y * x_dim + x] == 2) {
-      //   // create a copy of the board with the change
-      //   const newBoard = board.slice();
-      //   newBoard[(board[y * x_dim + x] == 1 ? y + 1 : y - 1) * x_dim + x] = board[y * x_dim + x];
-      //   newBoard[y * x_dim + x] = 0;
-
-      //   moves.push({
-      //     from: { y, x },
-      //     to: { x, y: board[y * x_dim + x] == 1 ? y + 1 : y - 1 },
-      //     board: newBoard
-      //   });
-      // }
 
       console.log(moves);
 
@@ -68,32 +92,8 @@ async function handle(msg: MessageToServer, ctx: HandleCtx) {
       });
       break;
     }
-    case "start_game": {
-      const process = new ProcessManager("../lua-scripts/chess/specification.lua", "../lua-scripts/chess/weights.txt");
-      processes.set(ctx.id, process);
-
-      const state = await process.readInitialState();
-      // const state: MessageToClient = {
-      //   type: "board_info",
-      //   width: x_dim,
-      //   height: y_dim,
-      //   position: {
-      //     next_player: 1,
-      //     board
-      //   },
-      //   pieceNames
-      // };
-      ctx.reply(state);
-      break;
-    }
     case "move_select": {
       const { move } = msg;
-      // const process = processes.get(ctx.id);
-      // if (!process) throw new Error("No active game");
-      // await process.makeMove(move);
-      
-      // // Wait for and forward server's move
-      // const serverMove = await process.readServerMove();
 
       const process = processes.get(ctx.id);
       if (!process) throw new Error("No active game");
@@ -112,9 +112,7 @@ async function handle(msg: MessageToServer, ctx: HandleCtx) {
 
 app.get('/play', upgradeWebSocket(_c => {
 	const send = (ws: WSContext, m: MessageToClient) => {
-    ws.send(JSON.stringify({
-      status: "ok", result: m
-    } satisfies ServerResponse<MessageToClient>));
+    ws.send(JSON.stringify(m));
   };
 
 	const id = crypto.randomUUID();

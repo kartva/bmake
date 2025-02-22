@@ -15,6 +15,12 @@ enum class PosType {
 	Win, Loss, Draw, Other
 };
 
+struct LuaException: public std::exception {
+	std::string err;
+	LuaException(std::string const& err): err(err) {}
+	char const* what() const noexcept { return err.c_str(); }
+};
+
 struct LuaInterface {
 	lua_State* L;
 	int n,m; // Board dimensions found extracted from Lua

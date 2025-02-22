@@ -33,6 +33,7 @@
 			"program": "${workspaceFolder}/cpp/build/main",
 			"cwd": "${workspaceFolder}/cpp",
 			"preLaunchTask": "Build C++",
+			"args": ["../lua-scripts/chess/chess2.lua", "."],
 			// leaksanitizer doesn't work when debugger hogs ptrace
 			"env": { "ASAN_OPTIONS": "detect_leaks=0" }
 		}

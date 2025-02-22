@@ -9,6 +9,9 @@ import { ClassNameValue, twMerge } from "tailwind-merge";
 import { AppLink } from "./clientutil";
 import { Footer } from "./footer";
 
+import names from "./names.json";
+export const namePaths = Object.fromEntries(names.map(str=>[str,`/icon/${str}.svg`]));
+
 export const textColor = {
 	contrast: "dark:text-white text-black",
 	sky: "dark:text-sky-400 text-sky-700",

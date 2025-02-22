@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <map>
 #include "lua_interface.hpp"
@@ -59,8 +61,7 @@ Move receiveMove() {
     return move;
 }
 
-// Main I/O functions
-void intro(LuaInterface& lua) {
+void sendIntroInfo(LuaInterface& lua) {
     auto [width, height] = lua.board_dims();
     Position pos = lua.initial_position();
     auto pieceNames = lua.piece_names();

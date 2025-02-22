@@ -78,16 +78,25 @@ export class ProcessManager {
 	
 	constructor(luaPath: string, weightsPath: string) {
 		this.process = new Deno.Command("../cpp/build1/main", {
-			args: ["play", luaPath, weightsPath],
+			args: [luaPath, weightsPath],
 			stdin: "piped",
 			stdout: "piped",
+			stderr: "piped",
 		}).spawn();
 	}
 	
-	private async readLines(): Promise<string[]> {
+	private async readStdoutLines(): Promise<string[]> {
 		const reader = this.process.stdout.getReader();
 		const { value } = await reader.read();
 		const lines = this.decoder.decode(value).trim().split("\n");
+		reader.releaseLock();
+		return lines;
+	}
+
+	private async readStderr(): Promise<string> {
+		const reader = this.process.stderr.getReader();
+		const { value } = await reader.read();
+		const lines = this.decoder.decode(value).trim();
 		reader.releaseLock();
 		return lines;
 	}
@@ -97,9 +106,29 @@ export class ProcessManager {
 		await writer.write(this.encoder.encode(line + "\n"));
 		writer.releaseLock();
 	}
-	
+
+	async validateLuaAndStartTraining(): Promise<MessageToClient> {
+		const _ = await this.readStdoutLines(); // discard information about CLI
+
+		await this.writeLine("validate_lua");
+		const lines = await this.readStdoutLines();
+		await this.writeLine("start_training");
+
+		if (lines[0] === "validated") {
+			return { type: "lua_validated", status: "ok" };
+		} else {
+			return { type: "lua_validated", status: "error", what: `stdout:\n${lines.join("\n")}\nstderr:\n${await this.readStderr()}` };
+		}
+	}
+
+	// Wait for the engine to output a line, then trigger the callback.
+	async triggerOnStdoutput(cb: ((s: string) => void)) {
+		const msg = (await this.readStdoutLines()).join("\n");
+		cb(msg);
+	}
+
 	async readInitialState(): Promise<MessageToClient> {
-		const lines = await this.readLines();
+		const lines = await this.readStdoutLines();
 		return IOParser.parseIntroInfor(lines);
 	}
 	
@@ -108,7 +137,7 @@ export class ProcessManager {
 		await this.writeLine(`query_valid_moves\n`);
 		await this.writeLine(IOParser.sendCoord({ x, y }));
 
-		const lines = await this.readLines();
+		const lines = await this.readStdoutLines();
 		return IOParser.receiveManyMoves(lines);
 	}
 	
@@ -119,7 +148,7 @@ export class ProcessManager {
 	}
 	
 	async readServerMove(): Promise<Move> {
-		const lines = await this.readLines();
+		const lines = await this.readStdoutLines();
 		return IOParser.receiveMove(lines);
 	}
 	

@@ -4,7 +4,6 @@ import { Metadata } from "next";
 import { Chivo, Inter } from 'next/font/google';
 import React from "react";
 import banner from "../public/banner.png";
-import { catchAPIError } from "./server";
 import "./style.css";
 
 const chivo = Chivo({ subsets: ['latin'], display: 'swap', variable: "--chivo" });

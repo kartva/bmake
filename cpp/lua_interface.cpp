@@ -5,12 +5,6 @@
 #include <stdexcept>
 #include <string>
 
-struct LuaException: public std::exception {
-	std::string err;
-	LuaException(std::string const& err): err(err) {}
-	char const* what() const noexcept { return err.c_str(); }
-};
-
 void LuaInterface::check(int r) {
 	if (r != LUA_OK) {
 		std::string errMsg = lua_tostring(L, -1);
@@ -150,16 +144,16 @@ void LuaInterface::valid_moves(vec<Move>& out, Position const& position) {
 	
 	auto get_coord = [L=L]() {
 		Coord c;
-		lua_pushstring(L, "i"); // stack: ..., "x"
-		lua_gettable(L, -2); // stack: ..., x_value
+		if (lua_rawlen(L, -1)!=2) throw LuaException("expected 2 numbers for coord");
+
+		lua_rawgeti(L, -1, 1);
 		c.i=luaL_checkinteger(L, -1)-1; // stack: ..., x_value
 		lua_pop(L, 1); // stack: ...
 		
-		lua_pushstring(L, "j"); // stack: ..., "y"
-		lua_gettable(L, -2); // stack: ..., y_value
-		c.j=luaL_checkinteger(L, -1)-1; // stack: ..., y_value
+		lua_rawgeti(L, -1, 2);
+		c.i=luaL_checkinteger(L, -1)-1; // stack: ..., x_value
 		lua_pop(L, 1); // stack: ...
-		
+
 		return c;
 	};
 	

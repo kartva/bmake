@@ -19,7 +19,6 @@ const mainTheme = (err: boolean, theme: Theme) => EditorView.theme({
 	"&": {
 		"backgroundColor": theme=="dark" ? "#1e1e1e" : "#e5e7eb",
 		"color": err ? (theme=="dark" ? "#ef4444" : "#dc2626") : (theme=="dark" ? "#9cdcfe" : "#2563eb"),
-		"max-height": "10rem",
 		"flex-grow": "1",
 		width: "0",
 		"border-radius": "0.5rem",
@@ -102,8 +101,8 @@ export const exts = ({type, onc, theme}: EditorType&{onc?: (x: ViewUpdate)=>void
 	] : []
 ];
 
-export function CMEditor({source, setSource, onSubmit}: {
-	source: string, setSource: (x: string)=>void, onSubmit: () => void
+export function CMEditor({source, setSource}: {
+	source: string, setSource: (x: string)=>void
 }) {
 	const [v,setV] = useState<{txt: CMText|null, lastSrcChange: ChangeSet|null}>({
 		txt: null, lastSrcChange: null
@@ -165,16 +164,9 @@ export function CMEditor({source, setSource, onSubmit}: {
 		}
 	}, [v.txt]);
 
-	const handleSubmit = () => {
-		onSubmit();
-	};
-
 	return (
 		<div className="flex flex-col items-center gap-2">
 			<div ref={cmDiv} className="flex flex-row w-full" />
-			<Button onClick={handleSubmit}>
-				Submit
-			</Button>
 		</div>
 	);
 }

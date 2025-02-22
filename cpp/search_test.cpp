@@ -15,7 +15,7 @@ int main() {
 
 	auto init = interface.initial_position();
 	Searcher searcher(
-		2, 1, 10, 100, 1, lua, init
+		2, 1, 10, 100, 8, lua, init
 	);
 
 	auto out = searcher.search();

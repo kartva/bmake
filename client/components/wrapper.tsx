@@ -8,9 +8,9 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Collapse } from "react-collapse";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
-import { errorName, ServerResponse } from "@/components/types";
 import { useMediaQuery } from "./clientutil";
 import { bgColor, borderColor, Button, Loading } from "./util";
+import { MessageToClient, MessageToServer, ServerResponse, errorName } from "../../shared";
 
 export type ModalCtxType = {
 	extraActions: Element|null,
@@ -60,11 +60,18 @@ export function useSignInRedirect() {
 export type Theme = "dark"|"light";
 
 export type AppCtx = {
-	ws?: WebSocket,
+	ws: ()=>Promise<{
+		send: (x: MessageToServer)=>void,
+		onMessage: (x: (y: MessageToClient)=>void)=>(()=>void)
+	}>,
 	open: (m: AppModal) => void,
 	popupCount: number, incPopupCount: ()=>number,
 	forward: (back?: string)=>void, back: ()=>void,
 	goto: (to: string)=>void,
+
+	handleErr: (x: string)=>void,
+	launch: (x: (dispose: (()=>void)[])=>Promise<void>)=>void,
+
 	theme: Theme, setTheme: (x: Theme)=>void,
 	hasAuth: boolean|null,
 	setHasAuth: (x: boolean)=>void,
@@ -374,13 +381,13 @@ export function AppWrapper({children, className}: {
 
 	const [theme, setTheme] = useState<Theme>("dark");
 
-	const isDark = useMediaQuery("(prefers-color-scheme: dark)");
-	const updateTheme = useCallback(()=>{
-		const t: Theme = (window.localStorage.getItem("theme") as Theme) ?? (isDark ? "dark" : "light");
-		setTheme(t);
-	}, [setTheme, isDark]);
+	// const isDark = useMediaQuery("(prefers-color-scheme: dark)");
+	// const updateTheme = useCallback(()=>{
+	// 	const t: Theme = (window.localStorage.getItem("theme") as Theme) ?? (isDark ? "dark" : "light");
+	// 	setTheme(t);
+	// }, [setTheme, isDark]);
 
-	useEffect(updateTheme, [updateTheme]);
+	// useEffect(updateTheme, [updateTheme]);
 
 	useEffect(()=>{
 		const html = document.getElementsByTagName("html")[0];
@@ -446,9 +453,69 @@ export function AppWrapper({children, className}: {
 	}, [restoreScroll, setRestoreScroll]);
 
 	const doSetTheme = useCallback((x: Theme) => {
-		window.localStorage.setItem("theme", x);
-		updateTheme();
-	}, [updateTheme])
+		// window.localStorage.setItem("theme", x);
+		// updateTheme();
+	}, [/*updateTheme*/])
+
+	const wsRef = useRef<Awaited<ReturnType<AppCtx["ws"]>>>(null);
+	const getWs = useCallback(async ()=>{
+		if (wsRef.current) return wsRef.current;
+
+		const sock = new WebSocket(new URL("/play", process.env.NEXT_PUBLIC_SERVER_URL));
+
+		await new Promise((res,rej)=>{
+			sock.onopen = res;
+			sock.onerror = (err)=>rej(new Error("Websocket connection errrored."));
+			sock.onclose = ()=>{
+				rej(new Error("Socket closed unexpectedly"));
+				wsRef.current=null;
+			};
+		});
+
+		sock.addEventListener("message", msg=>{
+			const msg2 = JSON.parse(msg.data as string) as MessageToClient;
+			if (msg2.type=="error") {
+				handleErr(msg2.what);
+			}
+		});
+
+		const ret = {
+			send(msg: MessageToServer) {
+				sock.send(JSON.stringify(msg));
+			},
+			onMessage(x: (y: MessageToClient)=>void) {
+				const listener = (v: WebSocketEventMap["message"]) => {
+					x(JSON.parse(v.data) as MessageToClient);
+				};
+
+				sock.addEventListener("message", listener);
+				return ()=>sock.removeEventListener("message", listener);
+			}
+		};
+
+		wsRef.current=ret;
+		return ret;
+	}, []);
+
+	const handleErr = useCallback((err: string)=>{
+		openModal({
+			type: "error",
+			name: "An error occurred",
+			msg: err
+			// retry: rerun
+		});
+	}, [openModal]);
+
+	const launch = useCallback((f: (dispose: (()=>void)[])=>Promise<void>)=>{
+    const d: (()=>void)[] = [];
+
+    f(d).catch((e)=>{
+			handleErr(e instanceof Error ? e.message : "Unknown error");
+      console.error(e);
+    }).finally(()=>{
+      d.forEach(x=>x());
+    });
+  }, []);
 
 	const appCtx: AppCtx = useMemo(()=>({
 		restoreScroll: doRestoreScroll,
@@ -457,11 +524,13 @@ export function AppWrapper({children, className}: {
 		incPopupCount, forward, goto,
 		back: goBack, theme,
 		setTheme: doSetTheme,
-		hasAuth, setHasAuth
+		hasAuth, setHasAuth, ws: getWs,
+		handleErr, launch
 	}), [
 		count, doRestoreScroll, forward,
 		goBack, goto, hasAuth, incPopupCount,
-		openModal, theme, doSetTheme
+		openModal, theme, doSetTheme, getWs,
+		handleErr, launch
 	]);
 
 	let m = <></>;

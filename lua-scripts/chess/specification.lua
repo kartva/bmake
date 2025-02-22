@@ -61,8 +61,8 @@ function Moves(player, position)
                     new_board.set(1,j1+j,player)
 
                     table.insert(out, {
-                        from={i=1,j=j1},
-                        to={i=1,j=j+j1},
+                        from={1,j1},
+                        to={1,j+j1},
                         board=new_board
                     })
                 end

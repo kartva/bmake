@@ -1,146 +1,65 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Coordinate, Move, Piece, MessageToClient } from "../../shared.ts";
+import Image from "next/image";
+import { namePaths } from "./util.tsx";
 
-const EmptyBoard = Array(8).fill(null).map(() => Array(8).fill(""));
+type Board = {
+	n: number, m: number,
+	board: number[][],
+	moves?: Move[],
+	pieces: string[]
+};
 
-export default function ChessBoard() {
-  const [selectedSquare, setSelectedSquare] = useState<[number, number] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [validMoves, setValidMoves] = useState<Move[]>([]);
-  const [board, setBoard] = useState<string[][]>(EmptyBoard);
-  const [pieceNames, setPieceNames] = useState<Record<number, string>>({});
-  const [boardInfo, setBoardInfo] = useState<Extract<MessageToClient, { type: "board_info" }> | null>(null);
-  const [isServerThinking, setIsServerThinking] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
+export default function ChessBoard({
+	board, selectSquare, selectMove, selectedSquare1
+}: {
+	board: Board,
+	selectedSquare1?: Coordinate,
+	selectSquare?: (x: Coordinate)=>void,
+	selectMove?: (x: Move["board"])=>void
+}) {
+	const [selectedSquare2, setSelectedSquare] = useState<Coordinate | null>(null);
+	const selectedSquare = selectedSquare1 ?? selectedSquare2;
+	const movesTo = useMemo(()=>
+		new Map(!selectedSquare ? [] : (board.moves ?? [])
+			.filter(x=>x.from.x==selectedSquare.x && x.from.y==selectedSquare.y)
+			.map(v=>[`${v.to.x}-${v.to.y}`, v.board])), [selectedSquare]);
 
-  const FlatNumberTo2DStringBoard = (arr: number[], width: number) => {
-    // truncate arr to board length
-    arr = arr.slice(0, width * boardInfo!.height);
-    const string_arr = arr.map((pt: number) => pieceNames[pt]);
-    const newArr: string[][] = [];
-    for (let i = 0; i < string_arr.length; i += width) {
-      newArr.push(string_arr.slice(i, i + width));
-    }
-    console.log(newArr);
-    return newArr;
-  }
+	return <div className="grid gap-[1px] bg-gray-600 p-[1px]"
+		style={{
+			gridTemplateColumns: `repeat(${board.m}, minmax(0, 1fr))`,
+			gridTemplateRows: `repeat(${board.n}, minmax(0, 1fr))`
+		}} >
+		{board.board.map((vs,row) =>
+			vs.map((x, col) => {
+				const isSel = selectedSquare?.x == col && selectedSquare?.y == row;
+				const targetMove = movesTo.get(`${col}-${row}`);
 
-  useEffect(() => {
-    wsRef.current = new WebSocket(new URL("/play", process.env.NEXT_PUBLIC_SERVER_URL));
+				return (
+					<div
+						key={`${row}-${col}`}
+						className={`w-16 h-16 flex items-center justify-center relative
+							${(row+col)%2 ? "bg-[#B58863]" : "bg-[#F0D9B5]"}
+							${isSel ? "ring-2 ring-yellow-400 ring-inset" : ""}
+							${targetMove!=undefined ? "after:absolute after:inset-0 after:bg-yellow-400 after:opacity-30" : ""}
+							hover:ring-2 hover:ring-yellow-400 hover:ring-inset`}
+						onClick={() => {
+							if (targetMove!=undefined) {
+								selectMove?.(targetMove);
+								setSelectedSquare(null);
+							} else if (selectSquare) {
+								selectSquare({x: col, y: row});
+							} else {
+								setSelectedSquare({x: col, y: row});
+							}
+						}} >
 
-    wsRef.current.onmessage = (event) => {
-      const msg = JSON.parse(event.data) as MessageToClient;
-      switch (msg.type) {
-        case "requested_valid_moves": {
-          setValidMoves(msg.moves);
-          setIsLoading(false);
-          break;
-        }
-        case "board_info": {
-          setPieceNames(msg.pieceNames);
-          setBoardInfo(msg); // Store board info for processing after pieceNames updates
-          break;
-        }
-        case "server_move_select": {
-          boardInfo!.position.board = msg.move.board;
-          setIsServerThinking(false);
-          break;
-        }
-      }
-    };
-
-    wsRef.current.onopen = () => {
-      wsRef.current?.send(JSON.stringify({ type: "start_game" }));
-    };
-
-    return () => wsRef.current?.close();
-  }, []);
-
-  const fetchValidMoves = async (x: number, y: number) => {
-    setIsLoading(true);
-    setValidMoves([]); // Clear previous valid moves
-    wsRef.current?.send(JSON.stringify({
-      type: "query_valid_moves",
-      x,
-      y
-    }));
-  };
-
-  const handleMoveSelect = async (move: Move) => {
-    wsRef.current?.send(JSON.stringify({
-      type: "move_select",
-      move
-    }));
-
-    boardInfo!.position.board = move.board;
-    setSelectedSquare(null);
-    setValidMoves([]);
-    setIsServerThinking(true);
-  };
-
-  const handleSquareClick = async (rowIndex: number, colIndex: number) => {
-    if (selectedSquare) {
-      // Check if clicked square is a valid move target
-      const targetMove = validMoves.find(
-        move => move.to.x === colIndex && move.to.y === rowIndex
-      );
-      if (targetMove) {
-        await handleMoveSelect(targetMove);
-        return;
-      }
-    }
-    setSelectedSquare([rowIndex, colIndex]);
-    await fetchValidMoves(colIndex, rowIndex);
-  };
-
-  const handleContainerClick = (e: React.MouseEvent) => {
-    // Only deselect if clicking the container itself, not a square
-    if (e.target === e.currentTarget) {
-      setSelectedSquare(null);
-      setValidMoves([]); // Clear valid moves when deselecting
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center" onClick={handleContainerClick}>
-      <h1 className="text-4xl font-bold mb-4">Chess Board</h1>
-      {boardInfo && boardInfo.type == "board_info" && (
-        <div 
-          className="grid gap-[1px] bg-gray-600 p-[1px]"
-          style={{
-            gridTemplateColumns: `repeat(${boardInfo.width}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${boardInfo.height}, minmax(0, 1fr))`
-          }}
-        >
-          {FlatNumberTo2DStringBoard(boardInfo.position.board, boardInfo.width).map((row, rowIndex) =>
-            row.map((piece, colIndex) => {
-              const isAlternateSquare = (rowIndex + colIndex) % 2 === 0;
-              const isSelected = selectedSquare?.[0] === rowIndex && selectedSquare?.[1] === colIndex;
-              const isValidMoveTarget = validMoves.some(move => move.to.x === colIndex && move.to.y === rowIndex);
-
-              return (
-                <div
-                  key={`${rowIndex}-${colIndex}`}
-                  className={`w-16 h-16 flex items-center justify-center relative
-                    ${isAlternateSquare ? "bg-gray-700" : "bg-gray-800"}
-                    ${isSelected ? "ring-2 ring-yellow-400 ring-inset" : ""}
-                    ${isSelected && isLoading ? "opacity-50" : ""}
-                    ${isValidMoveTarget ? "after:absolute after:inset-0 after:bg-yellow-400 after:opacity-30" : ""}
-                    hover:ring-2 hover:ring-yellow-400 hover:ring-inset`}
-                  onClick={() => handleSquareClick(rowIndex, colIndex)}
-                >
-                  {piece}
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-      {isServerThinking && (
-        <div className="mt-4 text-2xl">🕐</div>
-      )}
-    </div>
-  );
+						{x>0 && <Image width={50} height={50} src={namePaths[board.pieces[x-1]]} alt="square" ></Image>}
+					</div>
+				);
+			})
+		)}
+	</div>
 }
