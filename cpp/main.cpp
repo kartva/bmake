@@ -25,7 +25,7 @@ using namespace std;
 
 int main(int argc, char** argv) {
 	stringstream ss;
-	for (int i=0; i<argc; i++) ss<<argv[i]<<" ";
+	for (int i=1; i<argc; i++) ss<<argv[i]<<" ";
 
 	// Command line arguments:
 	// play <lua_path> <weights_path> (play with weights from <weights_path>)
