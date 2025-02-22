@@ -25,6 +25,62 @@ BLACK_ROOK = 10
 BLACK_QUEEN = 11
 BLACK_KING = 12
 
+-- Piece name mapping
+piece_names = {
+    [WHITE_PAWN] = "wp",
+    [WHITE_KNIGHT] = "wn",
+    [WHITE_BISHOP] = "wb",
+    [WHITE_ROOK] = "wr",
+    [WHITE_QUEEN] = "wq",
+    [WHITE_KING] = "wk",
+    [BLACK_PAWN] = "bp",
+    [BLACK_KNIGHT] = "bn",
+    [BLACK_BISHOP] = "bb",
+    [BLACK_ROOK] = "br",
+    [BLACK_QUEEN] = "bq",
+    [BLACK_KING] = "bk"
+}
+
+-- Initial board state
+initial_board = {
+    -- White pieces (back rank)
+    {piece = {type = WHITE_ROOK}, pos = {x = 1, y = 1}},
+    {piece = {type = WHITE_KNIGHT}, pos = {x = 2, y = 1}},
+    {piece = {type = WHITE_BISHOP}, pos = {x = 3, y = 1}},
+    {piece = {type = WHITE_QUEEN}, pos = {x = 4, y = 1}},
+    {piece = {type = WHITE_KING}, pos = {x = 5, y = 1}},
+    {piece = {type = WHITE_BISHOP}, pos = {x = 6, y = 1}},
+    {piece = {type = WHITE_KNIGHT}, pos = {x = 7, y = 1}},
+    {piece = {type = WHITE_ROOK}, pos = {x = 8, y = 1}},
+    -- White pawns
+    {piece = {type = WHITE_PAWN}, pos = {x = 1, y = 2}},
+    {piece = {type = WHITE_PAWN}, pos = {x = 2, y = 2}},
+    {piece = {type = WHITE_PAWN}, pos = {x = 3, y = 2}},
+    {piece = {type = WHITE_PAWN}, pos = {x = 4, y = 2}},
+    {piece = {type = WHITE_PAWN}, pos = {x = 5, y = 2}},
+    {piece = {type = WHITE_PAWN}, pos = {x = 6, y = 2}},
+    {piece = {type = WHITE_PAWN}, pos = {x = 7, y = 2}},
+    {piece = {type = WHITE_PAWN}, pos = {x = 8, y = 2}},
+    -- Black pieces (back rank)
+    {piece = {type = BLACK_ROOK}, pos = {x = 1, y = 8}},
+    {piece = {type = BLACK_KNIGHT}, pos = {x = 2, y = 8}},
+    {piece = {type = BLACK_BISHOP}, pos = {x = 3, y = 8}},
+    {piece = {type = BLACK_QUEEN}, pos = {x = 4, y = 8}},
+    {piece = {type = BLACK_KING}, pos = {x = 5, y = 8}},
+    {piece = {type = BLACK_BISHOP}, pos = {x = 6, y = 8}},
+    {piece = {type = BLACK_KNIGHT}, pos = {x = 7, y = 8}},
+    {piece = {type = BLACK_ROOK}, pos = {x = 8, y = 8}},
+    -- Black pawns
+    {piece = {type = BLACK_PAWN}, pos = {x = 1, y = 7}},
+    {piece = {type = BLACK_PAWN}, pos = {x = 2, y = 7}},
+    {piece = {type = BLACK_PAWN}, pos = {x = 3, y = 7}},
+    {piece = {type = BLACK_PAWN}, pos = {x = 4, y = 7}},
+    {piece = {type = BLACK_PAWN}, pos = {x = 5, y = 7}},
+    {piece = {type = BLACK_PAWN}, pos = {x = 6, y = 7}},
+    {piece = {type = BLACK_PAWN}, pos = {x = 7, y = 7}},
+    {piece = {type = BLACK_PAWN}, pos = {x = 8, y = 7}}
+}
+
 function is_white_piece(piece_type)
     return piece_type <= WHITE_KING
 end
