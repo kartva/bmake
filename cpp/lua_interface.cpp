@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-void ChessEngine::checkLua(int r) {
+void LuaInterface::checkLua(int r) {
 	if (r != LUA_OK) {
 		std::string errMsg = lua_tostring(L, -1);
 		lua_pop(L, 1);
@@ -15,17 +15,17 @@ void ChessEngine::checkLua(int r) {
 	}
 }
 
-ChessEngine::ChessEngine() {
+LuaInterface::LuaInterface(std::string const& path) {
 	L = luaL_newstate();
 	luaL_openlibs(L);
-	checkLua(luaL_dofile(L, "/bmake/lua-scripts/chess/specification.lua"));
+	checkLua(luaL_dofile(L, path.c_str()));
 }
 
-ChessEngine::~ChessEngine() {
+LuaInterface::~LuaInterface() {
 	lua_close(L);
 }
 
-PosMoves ChessEngine::getValidMoves(int player, Position const& position) {
+PosMoves LuaInterface::getValidMoves(int player, Position const& position) {
 	lua_getglobal(L, "moves"); // stack: moves()
 	lua_pushinteger(L, player); // stack: moves, player
 
@@ -35,7 +35,7 @@ PosMoves ChessEngine::getValidMoves(int player, Position const& position) {
 	// For every piece on the board, add it to the board table
 	for (auto p: position.board) {
 		// stack: moves, player, board
-		lua_createtable(L, 0, 2);  // stack: ..., 
+		lua_createtable(L, 0, 2);  // stack: ..., piece and pos tables
 		
 		// Create piece table
 		lua_pushstring(L, "piece");

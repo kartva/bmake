@@ -14,11 +14,11 @@ struct PosMoves {
 	vec<Move> moves;
 };
 
-struct ChessEngine {
+struct LuaInterface {
 	lua_State* L;
 
-	ChessEngine();
-	~ChessEngine();
+	LuaInterface(std::string const& path);
+	~LuaInterface();
 	PosMoves getValidMoves(int player, Position const& position);
 	void checkLua(int r);
 };
