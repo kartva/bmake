@@ -151,7 +151,7 @@ void LuaInterface::valid_moves(vec<Move>& out, Position const& position) {
 		lua_pop(L, 1); // stack: ...
 		
 		lua_rawgeti(L, -1, 2);
-		c.i=luaL_checkinteger(L, -1)-1; // stack: ..., x_value
+		c.j=luaL_checkinteger(L, -1)-1; // stack: ..., x_value
 		lua_pop(L, 1); // stack: ...
 
 		return c;

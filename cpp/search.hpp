@@ -184,8 +184,16 @@ struct Searcher {
 		int o=0;
 		for (int i=0; i<n; i++) for (int j=0; j<m; j++) {
 			int x = i*m+j;
-			if (pos.board[x])
-				o+=pst[pos.board[x]-1][i*m + j];
+			if (pos.board[x]){
+				if (pos.board[x] <= 6){
+					//std::cout << pos.board[x] - 1 << ' ' << x << ' ' << pst[pos.board[x] - 1][x] << '\n';
+					if (!pos.next_player) o+=pst[pos.board[x]-1][x];
+				}
+				else {
+					//std::cout << pos.board[x] - 6 - 1 << ' ' << x << ' ' << pst[pos.board[x] - 6 - 1][x] << '\n';
+					if (pos.next_player) o+=pst[pos.board[x]-6-1][x];
+				}
+			}
 		}
 		return pos.next_player ? -o : o;
 	}
@@ -300,7 +308,7 @@ struct Searcher {
 				}
 
 				auto it2 = killer_move.find(s.hash);
-				if (it2==killer_move.end() && s.depth > 2) {
+				if (it2==killer_move.end() && s.depth > 3) {
 					s.n_wait=1;
 
 					std::unique_ptr<SearchState> new_state = std::make_unique<SearchState>(
@@ -406,7 +414,7 @@ struct Searcher {
 			std::optional<Move> best2;
 			int lo=LOSING, hi=WINNING;
 			while (!tle && hi-lo > EVAL_ROUGHNESS) {
-				int mid = (hi+lo+1)/2;
+				int mid = (hi+lo+1)y ,/2;
 				auto ret = bound(mid, depth);
 				if (!ret) return std::nullopt;
 

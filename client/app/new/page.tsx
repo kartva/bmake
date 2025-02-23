@@ -4,18 +4,12 @@ import { CMEditor } from "@/components/code_editor";
 import { bgColor, borderColor, Button, containerDefault, IconButton, Input, Loading, namePaths, Text } from "@/components/util";
 import { Tab, Tabs } from "@heroui/react";
 import { useContext, useEffect, useState } from "react";
-import { AppCtx, ModalCtx } from "@/components/wrapper";
+import { AppCtx, ModalActions, ModalCtx } from "@/components/wrapper";
 import Image from "next/image";
 import { IconCirclePlusFilled, IconSquareXFilled, IconX } from "@tabler/icons-react";
 import { Alert, simp } from "@/components/clientutil";
 import ChessBoard from "@/components/board";
-
-type Game = {
-	src: string,
-	pieces: string[],
-	n: number, m: number,
-	init: number[][]
-};
+import { Game } from "../../../shared";
 
 function IconPicker({chooseIcon}: {chooseIcon: (x:string)=>void}) {
 	const [search, setSearch] = useState("");
@@ -40,6 +34,34 @@ function IconPicker({chooseIcon}: {chooseIcon: (x:string)=>void}) {
 	</>;
 }
 
+function TrainingModal({game}: {game: Game}) {
+	const ctx = useContext(AppCtx);
+	const [done, setDone] = useState<null|string>(null);
+
+	useEffect(()=>ctx.launch(async (d)=>{
+		const ws = await ctx.ws();
+
+		d.push(ws.onMessage(msg=>{
+			if (msg.type=="model_loaded") setDone(msg.id);
+		}));
+
+		ws.send({ type: "train", game });
+	}), []);
+
+	return <>
+		{!done ? <Text v="md" >Give it some time (30 min)</Text>
+			: <Text v="bold" >All done!</Text>}
+
+		<ModalActions>
+			{done!=null && <Button className={bgColor.sky} onClick={()=>{
+				ctx.goto(`/game?id=${done}`);
+			}} >
+				Proceed
+			</Button>}
+		</ModalActions>
+	</>;
+}
+
 export default function Page() {
 	const ctx = useContext(AppCtx);
 	const [valStatus, setValStatus] = useState<{
@@ -51,7 +73,7 @@ export default function Page() {
 	const [game, setGame] = useState<Game>(()=>{
 		const s = window.localStorage.getItem("game");
 		return s ? JSON.parse(s) as Game : {
-			src: "", pieces: [] as string[], n: 8, m: 8,
+			src: "-- write some Lua here", pieces: [] as string[], n: 8, m: 8,
 			init: [...new Array(8)].map(_=>[...new Array(8)].map(_=>0))
 		};
 	});
@@ -105,13 +127,13 @@ export default function Page() {
 					<div className="max-w-[30rem] flex flex-col gap-2" >
 						<div className="flex flex-row items-center gap-2 justify-between" >
 							<Text v="bold" >Board width</Text>
-							<Input type="number" min={1} step={1} onChange={(ev)=>{
+							<Input type="number" min={1} step={1} value={game.m} onChange={(ev)=>{
 								upGameNM("m", ev.target.value);
 							}} />
 						</div>
 						<div className="flex flex-row items-center gap-2 justify-between" >
 							<Text v="bold" >Board height</Text>
-							<Input type="number" min={1} step={1} onChange={(ev)=>{
+							<Input type="number" min={1} step={1} value={game.n} onChange={(ev)=>{
 								upGameNM("n", ev.target.value);
 							}} />
 						</div>
@@ -119,7 +141,7 @@ export default function Page() {
 
 					{tooBig ? <Alert bad title="Board too large" txt="Sorry about that" />
 						: <div className="flex flex-row gap-3 items-start" >
-							<div className="grid grid-cols-1 gap-2 auto-rows-fr" >
+							<div className="grid grid-cols-2 gap-2 auto-rows-fr" >
 								{game.pieces.map((p,i)=>
 									<Button className={`flex flex-col gap-1 items-center ${
 											activePiece==i ? bgColor.highlight : ""
@@ -140,7 +162,7 @@ export default function Page() {
 							<ChessBoard board={
 								{board: goodBoard, n: game.n, m: game.m, pieces: game.pieces}
 							} selectSquare={c=>{
-								upGame({init: game.init.toSpliced(c.y, 1, game.init[c.y].toSpliced(c.x, 1, activePiece+1))})
+								upGame({init: game.init.toSpliced(c.i, 1, game.init[c.i].toSpliced(c.j, 1, activePiece+1))})
 							}} />
 						</div>}
 				</div>
@@ -168,7 +190,7 @@ export default function Page() {
 				</div>
 			</Tab>
 			<Tab key="lua" title="Lua" >
-				<CMEditor source="-- write some Lua here" setSource={(src)=>{
+				<CMEditor source={game.src} setSource={(src)=>{
 					upGame({src});
 				}} />
 
@@ -191,12 +213,17 @@ export default function Page() {
 					Validate code
 				</Button>
 
-				{valStatus?.type=="error" ? <Alert bad title="Validation failed" txt={valStatus.what} />
+				{valStatus?.type=="error" ? <Alert bad title="Validation failed" txt={valStatus.what} className="mt-4" />
 					: valStatus?.type=="loading" ? <Loading/>
 					: valStatus?.type=="ok" && <div>
 						<Alert title="Success" txt="Lua is good to go 👍" className="mt-4" />
-						{canContinue && <Button onClick={()=>{
-							
+						{canContinue && <Button className="mt-4" onClick={()=>{
+							ctx.open({
+								type: "other", name: "Training the AI",
+								modal: <TrainingModal game={{
+									...game, init: goodBoard
+								}} />
+							});
 						}} >Create game</Button>}
 					</div>}
 			</Tab>

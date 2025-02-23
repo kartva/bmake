@@ -4,10 +4,9 @@ piece_names: table
     - key: number
     - value: string
 
-function type(player: number, position: table)
+function Type(player: number, position: board)
     - player: 1 for white, 2 for black.
-    - position: table array, each element:
-        { type: number, i: number, j: number }
+    - position: board with get,set,clone
     - returns: a string "win", "loss", "draw", or nil if not an ending state
 
 function moves(player: number, position: table): table

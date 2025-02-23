@@ -122,8 +122,6 @@ export function CMEditor({source, setSource}: {
 			}})
 		});
 
-		const content = edit.contentDOM;
-
 		setEditor(edit);
 		return () => edit.destroy();
 	}, [theme]);

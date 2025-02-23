@@ -7,70 +7,67 @@
 
 using namespace std;
 
-Coord receiveCoord() {
-    Coord coord;
-    int i, j;
-    cin >> i >> j;
-    coord.i = i;
-    coord.j = j;
+struct ServerIO {
+	vector<int> out;
 
-    return coord;
-}
+	void flush() {
+		for (int x: out) cout<<x<<" ";
+		cout<<endl;
+		cout.flush();
+		out.clear();
+	}
 
-void sendCoord(const Coord& coord) {
-    cout << (int) coord.i << " " << (int) coord.j << "\n";
-}
+	Coord receive_coord() {
+		Coord coord;
+		int i, j;
+		cin >> i >> j;
+		coord.i = i;
+		coord.j = j;
 
+		return coord;
+	}
 
-void sendBoard(const unsigned char board[MAX_BOARD_SIZE]) {
-    for (int i = 0; i < MAX_BOARD_SIZE - 1; i++) {
-        cout << (int)board[i] << " ";
-    }
-    cout << (int)board[MAX_BOARD_SIZE - 1] << "\n";
-}
+	void send_coord(const Coord& coord) {
+		out.insert(out.end(), {coord.i, coord.j});
+	}
 
-void receiveBoard(unsigned char board[MAX_BOARD_SIZE]) {
-    for (int i = 0; i < MAX_BOARD_SIZE; i++) {
-        int val;
-        cin >> val;
-        board[i] = (unsigned char)val;
-    }
-}
+	void send_board(const unsigned char* board, int n, int m) {
+		out.insert(out.end(), {n,m});
+		for (int i = 0; i < n*m; i++) out.push_back(board[i]);
+	}
 
-void sendPosition(const Position& pos) {
-    cout << pos.next_player << "\n";
-    sendBoard(pos.board);
-}
+	void receive_board(unsigned char* board) {
+		int n,m; cin>>n>>m;
+		for (int i = 0; i < n*m; i++) {
+			int val;
+			cin >> val;
+			board[i] = (unsigned char)val;
+		}
+	}
 
-void receivePosition(Position& pos) {
-    cin >> pos.next_player;
-    receiveBoard(pos.board);
-}
+	void send_pos(const Position& pos, int n, int m) {
+		out.push_back(pos.next_player);
+		send_board(pos.board,n,m);
+	}
 
-void sendMove(const Move& move) {
-    sendCoord(move.from);
-    sendCoord(move.to);
-    sendBoard(move.board);
-}
+	Position receive_pos() {
+		Position pos;
+		cin >> pos.next_player;
+		receive_board(pos.board);
+		return pos;
+	}
 
-Move receiveMove() {
-    Move move;
-    move.from = receiveCoord();
-    move.to = receiveCoord();
-    receiveBoard(move.board);
-    return move;
-}
+	void send_move(const Move& move,int n,int m) {
+		send_coord(move.from);
+		send_coord(move.to);
+		send_board(move.board,n,m);
+	}
 
-void sendIntroInfo(LuaInterface& lua) {
-    auto [width, height] = lua.board_dims();
-    Position pos = lua.initial_position();
-    auto pieceNames = lua.piece_names();
-    
-    // Send actual dimensions first
-    cout << width << " " << height << "\n";
-    // Then send the position using the fixed array
-    sendPosition(pos);
-    for (const auto& [type, name] : pieceNames) {
-        cout << type << " " << name << "\n";
-    }
-}
+	Move receive_move() {
+		Move move;
+		move.from = receive_coord();
+		move.to = receive_coord();
+		receive_board(move.board);
+		return move;
+	}
+};

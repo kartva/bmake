@@ -7,13 +7,13 @@
 			"type": "node",
 			"program": "${workspaceFolder}/server/main.ts",
 			"cwd": "${workspaceFolder}/server",
-			"env": {},
 			"runtimeExecutable": "deno",
 			"envFile": "${workspaceFolder}/server/.env",
 			"runtimeArgs": [
 				"run",
 				"--allow-all",
-				"--unstable-kv"
+				"--unstable-kv",
+				"--inspect-wait"
 			],
 			"console": "integratedTerminal",
 			"attachSimplePort": 9229

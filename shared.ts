@@ -1,17 +1,12 @@
 export const MaxBoardSize = 64;
 
 export type Coordinate = {
-	x: number,
-	y: number
-};
-
-export type Piece = {
-	type: number,
-	pos: Coordinate
+	i: number,
+	j: number
 };
 
 export type Position = {
-	next_player: number;
+	next_player: 0|1;
 	board: number[];
 }
 
@@ -19,6 +14,20 @@ export type Move = {
 	from: Coordinate,
 	to: Coordinate,
 	board: number[]
+};
+
+export type MoveHistory = {
+	player: 0|1,
+	move: Move
+}[];
+
+export type ClientState = {
+	id: string,
+	game: Omit<Game,"init"|"src">,
+	position: Position,
+	clientPlayer: 0|1,
+	moves: Move[],
+	history: MoveHistory
 };
 
 export type MessageToClient = ({
@@ -29,29 +38,23 @@ export type MessageToClient = ({
 	status: "error", what: string
 })) | {
 	type: "model_loaded",
-} | {
+	id: string
+} | (ClientState&{
 	type: "board_info",
-	width: number,
-	height: number,
-	position: Position,
-	pieceNames: Record<number, string>
-} | {
-	type: "requested_valid_moves",
-	moves: Move[]
-} | {
-	type: "server_move_select",
-	move: Move
-} | {
+}) | {
 	type: "error",
 	what: string
-} ;
+};
 
 export type MessageToServer = {
-	type: "query_valid_moves",
-	x: number,
-	y: number
+	type: "refresh"
 } | {
-	type: "start_game"
+	type: "train",
+	game: Game
+} | {
+	type: "start_game",
+	id: string,
+	player: 0|1
 } | {
 	type: "move_select",
 	move: Move
@@ -59,8 +62,6 @@ export type MessageToServer = {
 	type: "submit_lua",
 	src: string
 };
-
-export type State = {};
 
 export type ServerResponse<T> = {
 	status:"error",
@@ -83,3 +84,10 @@ export function errorName(err: (ServerResponse<unknown>&{status:"error"})["error
 	}
 	return name;
 }
+
+export type Game = {
+	src: string,
+	pieces: string[],
+	n: number, m: number,
+	init: number[][]
+};

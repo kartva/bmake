@@ -8,14 +8,14 @@
 using namespace std;
 
 int main() {
-	std::string lua = "/bmake/lua-scripts/chess/specification.lua";
+	std::string lua = "/bmake/lua-scripts/chess/chess2.lua";
 
 	auto interface = LuaInterface(lua);
 	interface.validate();
 
 	auto init = interface.initial_position();
 	Searcher searcher(
-		2, 1, 10, 100, 8, lua, init
+		12, 8, 8, 100, 0, lua, init
 	);
 
 	auto out = searcher.search();

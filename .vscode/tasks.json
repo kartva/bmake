@@ -27,7 +27,7 @@
 			"label": "Build C++",
 			"group": "build",
 			"type": "shell",
-			"command": "cmake --build ./build --target main",
+			"command": "cmake --build ./build --target main2",
 			"options": {"cwd": "${workspaceFolder}/cpp"},
 			"problemMatcher": ["$gcc"]
 		},

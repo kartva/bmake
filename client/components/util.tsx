@@ -8,6 +8,7 @@ import { ClassNamesConfig, Props as SelectProps } from "react-select";
 import { ClassNameValue, twMerge } from "tailwind-merge";
 import { AppLink } from "./clientutil";
 import { Footer } from "./footer";
+import star from "./star.svg";
 
 import names from "./names.json";
 export const namePaths = Object.fromEntries(names.map(str=>[str,`/icon/${str}.svg`]));
@@ -135,8 +136,21 @@ export const Chip = ({className, color, ...props}: HTMLAttributes<HTMLSpanElemen
 	<span className={twMerge("inline-block text-xs px-2 py-1 rounded-lg border-solid border whitespace-nowrap", chipColors[color ?? "gray"], className)}
 		{...props} >{props.children}</span>
 
+const Star = ()=><svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" style={{
+  fillRule: "evenodd",
+  clipRule: "evenodd",
+  strokeLinejoin: "round",
+  strokeMiterlimit: 2
+}} className="w-14" viewBox="0 0 150 150" ><path d="M-24.188 8.556h313.889v121.588H-24.188z" style={{
+    fill: "none"
+  }} transform="matrix(.47788 0 0 1.23367 11.559 -10.555)" /><path d="M31.155 65.897c-.161-.743.364-1.614.836-2.124.472-.509 1.276-1.08 1.996-.933 1.786.365 7.31 3.631 8.721 3.122 1.411-.51-.351-4.806-.257-6.179.05-.738.343-1.582.82-2.06.478-.477 1.357-.804 2.044-.804.686 0 1.593.327 2.076.804.482.478.778 1.322.82 2.06.086 1.505-2.072 3.26-.306 6.971.756 1.59 7.971-2.385 9.961-2.691.71-.109 1.518.365 1.979.853.461.488 1.024 1.374.789 2.076-.271.807-1.269 2.334-2.414 2.767-1.727.655-7.3.236-7.949 1.159-.649.922 2.674 2.973 4.055 4.377 1.369 1.391 3.797 2.832 4.233 4.046.409 1.137-.803 2.441-1.614 3.243s-2.167 1.567-3.253 1.571c-1.086.004-3.253-.343-3.263-1.547-.022-2.572-1.875-9.162-4.825-8.247-1.819.565-4.724 8.163-6.561 9.262-1.487.89-3.57-1.877-4.461-2.664-.56-.495-.901-1.313-.885-2.06.018-.866.128-2.465.994-3.14 1.451-1.132 7.997-2.426 7.713-3.651-.283-1.226-5.016-4.614-9.415-3.7-1.015.21-1.668-1.738-1.834-2.511Z" style={{
+    fillRule: "nonzero"
+  }} transform="matrix(3.09015 3.05585 -3.72352 2.87586 201.187 -271.363)" /></svg>;
+
 export const LogoText = ({className, ...props}: HTMLAttributes<HTMLHRElement>) => 
-	<h1 className={twMerge("text-4xl md:text-6xl mr-2 my-auto select-none cursor-pointer font-display font-black", className)} {...props} >Board Game Engine</h1>;
+	<h1 className={twMerge("text-4xl md:text-6xl mr-2 my-auto select-none cursor-pointer font-display font-black fill-white flex flex-row gap-1 items-center", className)} {...props} >
+		<Star/> fish
+	</h1>;
 
 export const StatusPage = ({children, title}: {children: React.ReactNode, title: string}) =>
 	<>
@@ -224,15 +238,15 @@ export function capitalize(s: string) {
 type TextVariants = "big"|"lg"|"md"|"dim"|"bold"|"normal"|"err"|"sm"|"smbold";
 export function Text({className, children, v, ...props}: HTMLAttributes<HTMLParagraphElement>&{v?: TextVariants}) {
 	switch (v) {
-		case "big": return <h1 className={twMerge("md:text-3xl text-2xl font-display font-black", textColor.contrast, className)} {...props} >{children}</h1>;
-		case "bold": return <b className={twMerge("text-lg font-display font-extrabold", textColor.contrast, className)} {...props} >{children}</b>;
+		case "big": return <h1 {...props} className={twMerge("md:text-3xl text-2xl font-display font-black", textColor.contrast, className)} >{children}</h1>;
+		case "bold": return <b {...props} className={twMerge("text-lg font-display font-extrabold", textColor.contrast, className)} >{children}</b>;
 		case "smbold": return <b className={twMerge("text-sm font-display font-bold text-gray-700 dark:text-gray-300", className)} {...props} >{children}</b>;
-		case "md": return <h3 className={twMerge("text-xl font-display font-bold", textColor.contrast, className)} {...props} >{children}</h3>;
-		case "lg": return <h3 className={twMerge("text-xl font-display font-extrabold", textColor.contrast, className)} {...props} >{children}</h3>;
-		case "dim": return <span className={twMerge("text-sm text-gray-500 dark:text-gray-400", className)} {...props} >{children}</span>;
-		case "sm": return <p className={twMerge("text-sm text-gray-800 dark:text-gray-200", className)} {...props} >{children}</p>;
-		case "err": return <span className={twMerge("text-red-500", className)} {...props} >{children}</span>;
-		default: return <p className={className} {...props} >{children}</p>;
+		case "md": return <h3 {...props} className={twMerge("text-xl font-display font-bold", textColor.contrast, className)} >{children}</h3>;
+		case "lg": return <h3 {...props} className={twMerge("text-xl font-display font-extrabold", textColor.contrast, className)} >{children}</h3>;
+		case "dim": return <span {...props} className={twMerge("text-sm text-gray-500 dark:text-gray-400", className)} >{children}</span>;
+		case "sm": return <p {...props} className={twMerge("text-sm text-gray-800 dark:text-gray-200", className)} >{children}</p>;
+		case "err": return <span {...props} className={twMerge("text-red-500", className)} >{children}</span>;
+		default: return <p {...props} className={className} >{children}</p>;
 	}
 }
 

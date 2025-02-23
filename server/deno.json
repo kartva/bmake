@@ -1,5 +1,7 @@
 {
   "imports": {
+    "@std/streams": "jsr:@std/streams@^1.0.9",
+    "@types/node": "npm:@types/node@^22.13.5",
     "hono": "jsr:@hono/hono@^4.7.2"
   },
   "tasks": {

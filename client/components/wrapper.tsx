@@ -508,13 +508,20 @@ export function AppWrapper({children, className}: {
 
 	const launch = useCallback((f: (dispose: (()=>void)[])=>Promise<void>)=>{
     const d: (()=>void)[] = [];
+		let closed = false;
 
     f(d).catch((e)=>{
 			handleErr(e instanceof Error ? e.message : "Unknown error");
       console.error(e);
     }).finally(()=>{
-      d.forEach(x=>x());
+			if (closed) d.forEach(x=>x());
+			else closed=true;
     });
+
+		return () => {
+			if (closed) d.forEach(x=>x());
+			else closed=true;
+		};
   }, []);
 
 	const appCtx: AppCtx = useMemo(()=>({

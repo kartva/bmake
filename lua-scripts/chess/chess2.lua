@@ -50,7 +50,7 @@ end
 
 function addCastlingMoves(piece, i, j, position, moves)
     local player = (piece <= 6) and 1 or 2
-    local rights = castling_rights[player]
+    local rights = castling_rights[player] -- do we actually update castling rights?
     if rights.king_moved then return end
     local row = (player == 1) and 1 or 8
     local king_col = 5
@@ -120,7 +120,8 @@ function IsInCheck(player, position)
         if king_pos then break end
     end
     
-    -- if not king_pos then return true end
+    -- print("King position: ", king_pos[1], king_pos[2])
+    if not king_pos then return true end -- King "captured"?
 
     local opponent = (player == 1) and 2 or 1
     return IsAttacked(position, king_pos[1], king_pos[2], opponent)
@@ -168,34 +169,33 @@ function generateMovesCommon(piece, i, j, position, attacking)
                 end
             end
         end
-        return moves
-    end
-
-    -- Directions for other pieces.
-    local directions = {
-        [2] = {{-2,-1}, {-1,-2}, {1,-2}, {2,-1}, {2,1}, {1,2}, {-1,2}, {-2,1}},  -- Knight
-        [3] = {{-1,-1}, {-1,1}, {1,-1}, {1,1}},   -- Bishop
-        [4] = {{-1,0}, {1,0}, {0,-1}, {0,1}},       -- Rook
-        [5] = {{-1,-1}, {-1,1}, {1,-1}, {1,1}, {-1,0}, {1,0}, {0,-1}, {0,1}}, -- Queen
-        [6] = {{-1,-1}, {-1,1}, {1,-1}, {1,1}, {-1,0}, {1,0}, {0,-1}, {0,1}}   -- King
-    }
-    local dirs = directions[abs_piece]
-    if dirs then
-        for _, d in ipairs(dirs) do
-            local x, y = i, j
-            repeat
-                x, y = x + d[1], y + d[2]
-                if x < 1 or x > BOARD_HEIGHT or y < 1 or y > BOARD_WIDTH then break end
-                local target = position.get(x, y)
-                
-                if target ~= 0 then
-                    if isOpponent(target, player) then
-                        table.insert(moves, {to = {x, y}})
+    else
+        -- Directions for other pieces.
+        local directions = {
+            [2] = {{-2,-1}, {-1,-2}, {1,-2}, {2,-1}, {2,1}, {1,2}, {-1,2}, {-2,1}},  -- Knight
+            [3] = {{-1,-1}, {-1,1}, {1,-1}, {1,1}},   -- Bishop
+            [4] = {{-1,0}, {1,0}, {0,-1}, {0,1}},       -- Rook
+            [5] = {{-1,-1}, {-1,1}, {1,-1}, {1,1}, {-1,0}, {1,0}, {0,-1}, {0,1}}, -- Queen
+            [6] = {{-1,-1}, {-1,1}, {1,-1}, {1,1}, {-1,0}, {1,0}, {0,-1}, {0,1}}   -- King
+        }
+        local dirs = directions[abs_piece]
+        if dirs then
+            for _, d in ipairs(dirs) do
+                local x, y = i, j
+                repeat
+                    x, y = x + d[1], y + d[2]
+                    if x < 1 or x > BOARD_HEIGHT or y < 1 or y > BOARD_WIDTH then break end
+                    local target = position.get(x, y)
+                    
+                    if target ~= 0 then
+                        if isOpponent(target, player) then
+                            table.insert(moves, {to = {x, y}})
+                        end
+                        break
                     end
-                    break
-                end
-                table.insert(moves, {to = {x, y}})
-            until (abs_piece == 2 or abs_piece == 6) -- Knights and Kings can't slide.
+                    table.insert(moves, {to = {x, y}})
+                until (abs_piece == 2 or abs_piece == 6) -- Knights and Kings can't slide.
+            end
         end
     end
 
@@ -203,10 +203,19 @@ function generateMovesCommon(piece, i, j, position, attacking)
         addCastlingMoves(piece, i, j, position, moves)
     end
 
+    if attacking then return moves end -- ummmmm.... unclear if this is ok. added by ishan to prevent infinite recursion
+
     -- Remove moves that lead to check.
-    for idx, move in ipairs(moves) do
+
+    local iter = 1
+
+    while iter <= #moves do
+        local move = moves[iter]
         if doesMoveLeadToCheck(piece, i, j, move, position) then
-            table.remove(moves, idx)
+            -- print("Move leads to check: ", i, j, move.to[1], move.to[2], piece_names[piece])
+            table.remove(moves, iter)
+        else
+            iter = iter + 1
         end
     end
 
@@ -214,10 +223,13 @@ function generateMovesCommon(piece, i, j, position, attacking)
 end
 
 function doesMoveLeadToCheck(piece, i, j, move, position)
-    local new_board = position.clone()
-    new_board.set(i, j, 0)
-    new_board.set(move.to[1], move.to[2], piece)
-    return IsInCheck((piece <= 6) and 1 or 2, new_board)
+    local oldPiece = position.get(move.to[1], move.to[2])
+    position.set(i, j, 0)
+    position.set(move.to[1], move.to[2], piece)
+    local inCheck = IsInCheck((piece <= 6) and 1 or 2, position)
+    position.set(i, j, piece)
+    position.set(move.to[1], move.to[2], oldPiece)
+    return inCheck
 end
 
 function GenerateMoves(piece, i, j, position)
@@ -230,23 +242,7 @@ function GenerateAttackingMoves(piece, i, j, position)
 end
 
 function Moves(player, position)
-
-    -- -- make a table of belongsToPlayer for each position on the board
-    -- local playerPieces = {}
-    -- for i = 1, BOARD_HEIGHT do
-    --     playerPieces[i] = {}
-    --     for j = 1, BOARD_WIDTH do
-    --         playerPieces[i][j] = belongsToPlayer(position.get(i, j), player)
-    --     end
-    -- end
-
-    -- -- print the table
-    -- for i = 1, BOARD_HEIGHT do
-    --     for j = 1, BOARD_WIDTH do
-    --         io.write(playerPieces[i][j] and "1" or "0")
-    --     end
-    --     print()
-    -- end
+    -- player = player == 1 and 2 or 1
 
     local out = {}
     for i = 1, BOARD_HEIGHT do
@@ -258,31 +254,79 @@ function Moves(player, position)
                     local new_board = position.clone()
                     new_board.set(i, j, 0)
                     if move.promotion then
-                        piece.type = 6 * (player - 1) + 5
+                        piece = 6 * (player - 1) + 5
+                    end
+                    if move.castling then
+                        local rook_col = (move.to[2] == 3) and 1 or 8
+                        local rook = 6 * (player - 1) + 4
+                        new_board.set(i, rook_col, 0)
+                        new_board.set(i, (move.to[2] == 3) and 4 or 6, rook)
                     end
                     new_board.set(move.to[1], move.to[2], piece)
-                    print("Move: ", i, j, move.to[1], move.to[2])
+                    --print("Move: ", i, j, move.to[1], move.to[2], piece_names[piece])
                     table.insert(out, {from = {i, j}, to = {move.to[1], move.to[2]}, board = new_board})
                 end
             end
         end
     end
+
+    --print("Total moves: ", #out)
+
     return out
 end
+
+function Type(player, position)
+    local moves = Moves(player, position)
+    local type = nil
+    if #moves == 0 then
+        type = IsInCheck(player, position) and "lose" or "draw"
+        return type
+    end
+
+    local moves_opp = Moves(player == 1 and 2 or 1, position)
+    if #moves_opp == 0 then
+        type = IsInCheck(player == 1 and 2 or 1, position) and "win" or "draw"
+        return type
+    end
+    
+    return nil
+end
+
 
 -------------------------------
 -- Initial Board Setup
 -------------------------------
-InitialBoard = {
-    {4, 2, 3, 5, 6, 3, 2, 4},
-    {1, 1, 1, 1, 1, 1, 1, 1},
-    {0, 0, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, 0, 0},
-    {7, 7, 7, 7, 7, 7, 7, 7},
-    {10, 8, 9, 11, 12, 9, 8, 10}
-}
+-- InitialBoard = {
+--     {4, 2, 3, 5, 6, 3, 2, 4},
+--     {0, 1, 1, 1, 1, 1, 1, 1},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {1, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0}
+-- }
+-- 
+-- jeff board
+-- InitialBoard = {
+--     -- {4, 2, 3, 0, 6, 0, 2, 4},
+--     -- {1, 1, 1, 1, 0, 1, 1, 1},
+--     -- {0, 0, 0, 0, 0, 0, 0, 0},
+--     -- {0, 0, 3, 0, 1, 0, 0, 0},
+--     -- {0, 0, 0, 0, 7, 0, 0, 0},
+--     -- {0, 0, 0, 0, 0, 0, 0, 8},
+--     -- {7, 7, 7, 7, 0, 3, 7, 7},
+--     -- {10, 8, 9, 11, 12, 9, 0, 10}
+
+--     {0, 0, 0, 0, 6, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 4, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 9, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 12, 0, 0, 0}
+-- }
 
 InitialBoard = {
     {4, 2, 3, 5, 6, 3, 2, 4},
@@ -294,3 +338,16 @@ InitialBoard = {
     {7, 7, 7, 7, 7, 7, 7, 7},
     {10, 8, 9, 11, 12, 9, 8, 10}
 }
+
+-- InitialBoard = {
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 1, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 6, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 10, 0, 0, 0, 0},
+--     {0, 0, 0, 7, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0}
+-- }
+
+-- implement max length of game so we don't get stuck when a checkmate is impossible
