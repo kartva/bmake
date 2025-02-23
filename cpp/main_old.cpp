@@ -26,7 +26,9 @@ int main(int argc, char** argv) {
 		cout << "trying validate\n";
 		try {
 			LuaInterface lua(lua_path);
-			lua.validate();
+			ServerIO io;
+			Position pos = io.receive_pos();
+			lua.validate(pos);
 		} catch (LuaException& e) {
 			cout<<"Lua error: "<<e.err<<endl;
 			return 1;

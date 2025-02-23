@@ -1,4 +1,4 @@
-# *fish
+  <h1>*fish</h1>
 <p align="center">
   <i>pronounced "starfish"</i><br>
   <b>Training AI to beat you at board games that you make.</b>

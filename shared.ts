@@ -63,7 +63,9 @@ export type MessageToServer = {
 	move: Move
 } | {
 	type: "submit_lua",
-	src: string
+	src: string,
+	n: number, m: number,
+	init: number[][]
 };
 
 export type ServerResponse<T> = {

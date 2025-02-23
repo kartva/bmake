@@ -11,7 +11,7 @@ import process from "node:process";
 
 export class MainProc {
 	proc: Deno.ChildProcess;
-	read: ReadableStreamDefaultReader<string>; 
+	read: ReadableStream<string>; 
 	write: WritableStreamDefaultWriter<string>;
 	
 	constructor(...args: string[]) {
@@ -23,11 +23,11 @@ export class MainProc {
 		}).spawn();
 
 		this.read = this.proc.stdout.pipeThrough(new TextDecoderStream())
-			.pipeThrough(new TextLineStream()).getReader();
+			.pipeThrough(new TextLineStream());
 
-		this.proc.stderr.pipeThrough(new TextDecoderStream()).pipeTo(new WritableStream({
-			write(chunk) { console.error(chunk); }
-		}));
+		// this.proc.stderr.pipeThrough(new TextDecoderStream()).pipeTo(new WritableStream({
+		// 	write(chunk) { console.error(chunk); }
+		// }));
 
 		const encoder = new TextEncoderStream();
 		this.write = encoder.writable.getWriter();
@@ -39,9 +39,11 @@ export class MainProc {
 		const ex = this.proc.status.then(x=>({type: "exit", status: x} as const));
 
 		while (true) {
+			const rdr = this.read.getReader();
 			const res = await Promise.race([
-				tm, ex, this.read.read().then(x=>({type: "line", line: x} as const))
+				tm, ex, rdr.read().then(x=>({type: "line", line: x} as const))
 			]);
+			rdr.releaseLock();
 
 			if (res.type=="timeout") throw new Error("timeout");
 			if (res.type=="exit") {
@@ -76,7 +78,7 @@ export class MainProc {
 	}
 	
 	async readStdout(): Promise<string> {
-		return await toText(this.proc.stdout);
+		return await toText(this.read);
 	}
 
 	async readStderr(): Promise<string> {
@@ -90,7 +92,6 @@ export class MainProc {
 
 	async dispose() {
 		await this.write.close();
-		this.read.releaseLock();
 		await this.proc[Symbol.asyncDispose]();
 	}
 }

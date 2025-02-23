@@ -119,13 +119,12 @@ PosType LuaInterface::get_pos_type(Position const& position) {
 	if (lua_isnil(L, -1)) {
 		ret=PosType::Other;
 	} else {
-		char const* ret_str = lua_tostring(L, -1); // stack: result
-		
+		char const* ret_str = luaL_checkstring(L, -1); // stack: result
 		if (!ret_str) throw LuaException("Position type not a string");
-		
-		if (strcmp(ret_str, "win")==0) ret=PosType::Win;
-		else if (strcmp(ret_str, "draw")==0) ret=PosType::Draw;
-		else if (strcmp(ret_str, "loss")==0) ret=PosType::Loss;
+
+		if (ret_str[0]=='w') ret=PosType::Win;
+		else if (ret_str[0]=='d') ret=PosType::Draw;
+		else if (ret_str[0]=='l') ret=PosType::Loss;
 		else throw LuaException("Unrecognized position outcome");
 	}
 	
@@ -238,8 +237,7 @@ std::pair<int, int> LuaInterface::board_dims() {
 	return {m, n};
 }
 
-void LuaInterface::validate() {
-	auto init = initial_position();
+void LuaInterface::validate(Position const& init) {
 	vec<Move> moves;
 	valid_moves(moves, init);
 	get_pos_type(init);

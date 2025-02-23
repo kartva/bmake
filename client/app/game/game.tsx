@@ -30,6 +30,11 @@ export function ClientGame({
 
 	const youWon = (end=="win" || end=="loss") && ((end=="loss") == (clientPlayer!=position.next_player));
 
+	useEffect(()=>{
+		if (end!=null && end!="draw" && !youWon)
+			ctx.goto("/lose-video.mp4");
+	}, [end, youWon]);
+
 	return <>
 		<div className="flex flex-row justify-between self-center items-center my-10 mt-0 w-full" >
 			<div className="flex flex-col items-start" >

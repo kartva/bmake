@@ -54,10 +54,6 @@ class BadState extends Error {
   constructor() {super("bad state");}
 }
 
-type DBGame = Game&{
-  //weights
-};
-
 async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState> {
   const reset = async ()=>{
     while (ctx.dispose.length>0) await ctx.dispose.pop()!();

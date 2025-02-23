@@ -37,7 +37,7 @@ struct LuaInterface {
 	PosType get_pos_type(Position const& position);
 	void valid_moves(vec<Move>& out, Position const& position);
 	void check(int r);
-	void validate();
+	void validate(Position const& init);
 
 	// Returns the initial board state
 	Position initial_position();
