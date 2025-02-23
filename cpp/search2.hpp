@@ -190,7 +190,7 @@ struct Searcher {
 	// fails low: <gamma
 	// fails high: >=gamma+1
 	int bound(int lua_i, SearchState s, int gamma) {
-		// std::cerr << "bound " << s.depth << ' ' << s.score << ' ' << gamma << '\n';
+		std::cerr << "bound " << s.depth << ' ' << s.score << ' ' << gamma << '\n';
 
 		if (s.depth<0) s.depth=0;
 
@@ -323,7 +323,7 @@ struct Searcher {
 
 		for (int depth=1; !tle && depth<=max_depth; depth++) {
 			init.depth=depth;
-			// std::cerr<<"depth "<<depth<<", cache size "<<cache.size()<<std::endl;
+			std::cerr<<"depth "<<depth<<", cache size "<<cache.size()<<std::endl;
 
 			auto now = std::chrono::steady_clock::now();
 

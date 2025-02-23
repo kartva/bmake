@@ -137,7 +137,7 @@ async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState
       const process = await start(msg.src, "validate");
       await process.send([
         0, msg.n, msg.m,
-        ...msg.init
+        ...msg.init.flat()
       ].join(" "));
 
       if ((await process.wait()).code==1) {

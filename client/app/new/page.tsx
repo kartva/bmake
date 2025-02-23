@@ -213,12 +213,15 @@ export default function Page() {
 						}} >Create game</Button>}
 					</div>}
 
-				<Button
-					onClick={()=>{
+				<Button onClick={()=>{
 						ctx.launch(async ()=>{
 							setValStatus({type: "loading"});
 							const ws = await ctx.ws();
-							ws.send({type: "submit_lua", src: game.src});
+							ws.send({
+								type: "submit_lua", src: game.src,
+								init: goodBoard,
+								n: game.n, m: game.m
+							});
 							ws.onMessage((msg)=>{
 								if (msg.type=="lua_validated") {
 									setValStatus(msg.status=="error" ? {type: "error", what: msg.what} : {type: "ok"});

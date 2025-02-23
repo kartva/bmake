@@ -7,32 +7,32 @@
 
 using namespace std;
 
-// float activation(float in) {
-//     return tanh(in);
-// }
-
-// float activation_prime(float z) {
-//     float t = tanh(z);
-//     return 1.0f - t * t;
-// }
-
 float activation(float in) {
-    if (in < -1) {
-        return -1;
-    } else if (in > 1) {
-        return 1;
-    } else {
-        return in;
-    }
+    return tanh(in);
 }
 
 float activation_prime(float z) {
-    if (z < -1 || z > 1) {
-        return 0;
-    } else {
-        return 1;
-    }
+    float t = tanh(z);
+    return 1.0f - t * t;
 }
+
+// float activation(float in) {
+//     if (in < -1) {
+//         return -1;
+//     } else if (in > 1) {
+//         return 1;
+//     } else {
+//         return in;
+//     }
+// }
+
+// float activation_prime(float z) {
+//     if (z < -1 || z > 1) {
+//         return 0;
+//     } else {
+//         return 1;
+//     }
+// }
 
 int used_indices[INPUT_SIZE];
 
@@ -177,65 +177,71 @@ void benchmark_time_forward_vs_forward_flipidx() {
     exit(0);
 }
 
-// int main() {
+int main() {
 
-//     benchmark_time_forward_vs_forward_flipidx();
+    benchmark_time_forward_vs_forward_flipidx();
 
-//     Network net;
+    Network net;
 
-//     mt19937 gen(random_device{}());
+    mt19937 gen(random_device{}());
 
-//     normal_distribution<float> dist1(0.0f, sqrt(2.0f / (INPUT_SIZE + HL_SIZE)));
-//     normal_distribution<float> dist2(0.0f, sqrt(2.0f / (1 + HL_SIZE)));
+    normal_distribution<float> dist1(0.0f, sqrt(2.0f / (INPUT_SIZE + HL_SIZE)));
+    normal_distribution<float> dist2(0.0f, sqrt(2.0f / (1 + HL_SIZE)));
     
-//     for (int i = 0; i < INPUT_SIZE; i++) {
-//         for (int j = 0; j < HL_SIZE; j++) {
-//             net.hidden_weights[i][j] = dist1(gen);
-//         }
-//     }
+    for (int i = 0; i < INPUT_SIZE; i++) {
+        for (int j = 0; j < HL_SIZE; j++) {
+            net.hidden_weights[i][j] = dist1(gen);
+        }
+    }
 
-//     for (int j = 0; j < HL_SIZE; j++) {
-//         net.hidden_biases[j] = 0.0f;
-//         net.output_weights[j] = dist2(gen);
-//     }
+    for (int j = 0; j < HL_SIZE; j++) {
+        net.hidden_biases[j] = 0.0f;
+        net.output_weights[j] = dist2(gen);
+    }
 
-//     net.output_bias = 0.0f;
+    net.output_bias = 0.0f;
 
-//     bool input1[INPUT_SIZE];
-//     bool input2[INPUT_SIZE];
-//     for (int i = 0; i < INPUT_SIZE; i++) {
-//         // input1[i] = i % 2 == 0 || i % 3 == 0; // 1
-//         // input2[i] = i % 2 == 1; // 0
+    bool input1[INPUT_SIZE];
+    bool input2[INPUT_SIZE];
+    bool input3[INPUT_SIZE];
+    for (int i = 0; i < INPUT_SIZE; i++) {
+        // input1[i] = i % 2 == 0 || i % 3 == 0; // 1
+        // input2[i] = i % 2 == 1; // 0
 
-//         input1[i] = i % 2 == 0;
-//         input2[i] = i % 2 == 1;
-//     }
+        input1[i] = i % 2 == 0;
+        input2[i] = i % 2 == 1;
+        input3[i] = i % 3 == 0;
+    }
 
-//     // input2[0] = 0;
+    // input2[0] = 0;
     
-//     float learning_rate = 0.0001f;
-//     for (int i = 0; i < 200; i++) {
-//         float o1 = forward(net, input1);
-//         backward(net, -50.0f, learning_rate);
-//         cout << "Iteration " << i << " - Output for input1: " << o1 << '\n';
+    float learning_rate = 0.0003f;
+    for (int i = 0; i < 200; i++) {
+        float o1 = forward(net, input1);
+        backward(net, -50.0f, learning_rate);
+        cout << "Iteration " << i << " - Output for input1: " << o1 << '\n';
 
-//         float o2 = forward(net, input2);
-//         backward(net, 49.0f, learning_rate);
-//         cout << "Iteration " << i << " - Output for input2: " << o2 << '\n';
-//     }
+        float o2 = forward(net, input2);
+        backward(net, 49.0f, learning_rate);
+        cout << "Iteration " << i << " - Output for input2: " << o2 << '\n';
 
-//     float o1 = forward(net, input1);
-//     cout << "Output for input1: " << o1 << '\n';
+        float o3 = forward(net, input3);
+        backward(net, -40.0f, learning_rate);
+        cout << "Iteration " << i << " - Output for input3: " << o3 << '\n';
+    }
 
-//     float o2;
-//     // flip every bit
-//     for (int i = 0; i < INPUT_SIZE; i++) {
-//         o2 = forward_flipidx(net, i);
-//     }
-//     cout << "Output for input2 from flip: " << o2 << '\n';
+    float o1 = forward(net, input1);
+    cout << "Output for input1: " << o1 << '\n';
 
-//     o1 = forward(net, input2);
-//     cout << "Output for input2 orig: " << o1 << '\n';
+    float o2;
+    // flip every bit
+    for (int i = 0; i < INPUT_SIZE; i++) {
+        o2 = forward_flipidx(net, i);
+    }
+    cout << "Output for input2 from flip: " << o2 << '\n';
+
+    o1 = forward(net, input2);
+    cout << "Output for input2 orig: " << o1 << '\n';
     
-//     return 0;
-// }
+    return 0;
+}
