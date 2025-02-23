@@ -80,5 +80,7 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp"
-    }
+    },
+    "debug.focusEditorOnBreak": false,
+    "debug.focusWindowOnBreak": false
 }

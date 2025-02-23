@@ -148,9 +148,11 @@ const Star = ()=><svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" sty
   }} transform="matrix(3.09015 3.05585 -3.72352 2.87586 201.187 -271.363)" /></svg>;
 
 export const LogoText = ({className, ...props}: HTMLAttributes<HTMLHRElement>) => 
-	<h1 className={twMerge("text-4xl md:text-6xl mr-2 my-auto select-none cursor-pointer font-display font-black fill-white flex flex-row gap-1 items-center", className)} {...props} >
-		<Star/> fish
-	</h1>;
+	<AppLink href="/" >
+		<h1 className={twMerge("text-4xl md:text-6xl mr-2 my-auto select-none cursor-pointer font-display font-black fill-white flex flex-row gap-1 items-center", className)} {...props} >
+			<Star/> fish
+		</h1>
+	</AppLink>;
 
 export const StatusPage = ({children, title}: {children: React.ReactNode, title: string}) =>
 	<>

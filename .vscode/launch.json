@@ -25,15 +25,15 @@
 			"program": "${workspaceFolder}/cpp/build/searchtest",
 			"cwd": "${workspaceFolder}/cpp",
 			"preLaunchTask": "Build Search",
-			"env": { "ASAN_OPTIONS": "detect_leaks=0" }
+			"env": { "ASAN_OPTIONS": "detect_leaks=0" },
 		}, {
 			"type": "lldb",
 			"request": "launch",
 			"name": "Debug C++",
-			"program": "${workspaceFolder}/cpp/build/main",
+			"program": "${workspaceFolder}/cpp/build/main2",
 			"cwd": "${workspaceFolder}/cpp",
-			"preLaunchTask": "Build C++",
-			"args": ["../lua-scripts/chess/chess2.lua", "."],
+			// "preLaunchTask": "Build C++",
+			"args": ["train", "../lua-scripts/chess/chess2.lua", "."],
 			// leaksanitizer doesn't work when debugger hogs ptrace
 			"env": { "ASAN_OPTIONS": "detect_leaks=0" }
 		}

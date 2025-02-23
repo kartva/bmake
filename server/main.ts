@@ -1,6 +1,6 @@
 import { Context, Hono } from 'hono';
 import { upgradeWebSocket } from "jsr:@hono/hono/deno";
-import { MessageToClient, MessageToServer, Coordinate, Move, ServerResponse, Game, Position, MoveHistory } from "../shared.ts";
+import { MessageToClient, MessageToServer, Coordinate, Move, ServerResponse, Game, Position, MoveHistory, ClientState } from "../shared.ts";
 import { WSContext } from "jsr:@hono/hono/ws";
 import { coreIO, MainProc } from "./core_io.ts";
 
@@ -39,7 +39,8 @@ type ServerState = {
   game: Omit<Game,"init"|"src">,
   player: 0|1,
   position: Position,
-  history: MoveHistory
+  history: MoveHistory,
+  started: number
 };
 
 type HandleCtx = Readonly<{
@@ -73,14 +74,31 @@ async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState
   };
 
   const refresh = async (state: Extract<(typeof ctx)["state"], {type: "playing"}>) => {
-    await state.proc.send([
-      state.position.next_player,
-      state.game.n, state.game.m,
-      ...state.position.board
-    ].join(" "));
+    const sendPosition = async (ty: 0|1) => {
+      await state.proc.send([
+        ty,
+        state.position.next_player,
+        state.game.n, state.game.m,
+        ...state.position.board
+      ].join(" "));
 
-    const io = coreIO(await state.proc.readInts());
+      return coreIO(await state.proc.readInts(60_000));
+    };
+
+    const io = await sendPosition(0);
+    const getEnd = ()=>{
+      const postype = io.buf.pop()!;
+      let end: ClientState["end"] = null;
+      if (postype!=-2) {
+        end=postype==1 ? "win" : postype==0 ? "draw" : "loss";
+      }
+      return end;
+    };
+
+    const end1 = getEnd();
     const moves = [...new Array(io.buf.pop())].map(_=>io.receive_move());
+
+    const runAI = end1==null && state.player != state.position.next_player;
 
     ctx.reply({
       type: "board_info",
@@ -89,8 +107,29 @@ async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState
       clientPlayer: state.player,
       history: state.history,
       game: state.game,
-      moves
+      end: end1, moves,
+      started: state.started,
+      ai_loading: runAI
     });
+
+    if (runAI) {
+      const io2 = await sendPosition(1);
+      const move = io2.receive_move();
+
+      return await refresh({
+        ...state,
+        position: {
+          next_player: state.player,
+          board: move.board
+        },
+        history: [...state.history, {
+          player: state.player==0 ? 1 : 0,
+          move
+        }]
+      });
+    } else {
+      return state;
+    }
   };
 
   switch (msg.type) {
@@ -130,7 +169,7 @@ async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState
       const g = g_kv.value as DBGame;
 
       const proc = await start(g.src, "play");
-      await proc.send(`${g.n} ${g.m}`)
+      await proc.send(`${g.n} ${g.m} ${g.pieces.length}`)
 
       const playState = {
         type: "playing" as const,
@@ -142,17 +181,16 @@ async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState
           next_player: 0 as const,
           board: g.init.flat()
         },
-        history: []
+        history: [],
+        started: Date.now()
       };
 
-      await refresh(playState);
-      return playState;
+      return await refresh(playState);
     }
 
     case "refresh": {
       if (ctx.state.type!="playing") throw new BadState();
-      await refresh(ctx.state);
-      return ctx.state;
+      return await refresh(ctx.state);
     }
 
     case "move_select": {
@@ -170,8 +208,7 @@ async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState
         }]
       };
 
-      refresh(newState);
-      return newState;
+      return await refresh(newState);
     }
 
     //   const process = processes.get(ctx.id);

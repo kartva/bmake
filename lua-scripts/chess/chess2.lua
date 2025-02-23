@@ -151,7 +151,7 @@ function generateMovesCommon(piece, i, j, position, attacking)
             local x = i + dir
             if x >= 1 and x <= BOARD_HEIGHT and position.get(x, j) == 0 then
                 local move = {to = {x, j}}
-                if x == promo_row then move.promotion = true end -- todo: is promotion actually used?
+                if x == promo_row then move.promotion = true end
                 table.insert(moves, move)
                 if i == start_row and position.get(i + 2*dir, j) == 0 then
                     table.insert(moves, {to = {i + 2*dir, j}})
@@ -263,14 +263,14 @@ function Moves(player, position)
                         new_board.set(i, (move.to[2] == 3) and 4 or 6, rook)
                     end
                     new_board.set(move.to[1], move.to[2], piece)
-                    --print("Move: ", i, j, move.to[1], move.to[2], piece_names[piece])
+                    -- print("Move: ", i, j, move.to[1], move.to[2], piece_names[piece])
                     table.insert(out, {from = {i, j}, to = {move.to[1], move.to[2]}, board = new_board})
                 end
             end
         end
     end
 
-    --print("Total moves: ", #out)
+    -- print("Total moves: ", #out)
 
     return out
 end
@@ -279,7 +279,7 @@ function Type(player, position)
     local moves = Moves(player, position)
     local type = nil
     if #moves == 0 then
-        type = IsInCheck(player, position) and "lose" or "draw"
+        type = IsInCheck(player, position) and "loss" or "draw"
         return type
     end
 
@@ -289,6 +289,23 @@ function Type(player, position)
         return type
     end
     
+    local piece_count = 0
+    
+    -- Count the number of non-empty squares (excluding kings)
+    for i = 1, BOARD_WIDTH do
+        for j = 1, BOARD_HEIGHT do
+            local piece = position.get(i, j)
+            if piece ~= 0 and piece ~= 6 and piece ~= 12 then
+                piece_count = piece_count + 1
+            end
+        end
+    end
+
+    -- If only two kings remain, it's a draw
+    if piece_count == 0 then
+        return "draw"
+    end
+
     return nil
 end
 
@@ -338,6 +355,17 @@ InitialBoard = {
     {7, 7, 7, 7, 7, 7, 7, 7},
     {10, 8, 9, 11, 12, 9, 8, 10}
 }
+
+-- InitialBoard = {
+--     {4, 2, 3, 5, 6, 3, 2, 4},
+--     {1, 1, 1, 1, 1, 1, 1, 1},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {0, 0, 0, 0, 0, 0, 0, 0},
+--     {7, 7, 7, 7, 7, 7, 7, 7},
+--     {10, 8, 9, 11, 12, 9, 8, 10}
+-- }
 
 -- InitialBoard = {
 --     {0, 0, 0, 0, 0, 0, 0, 0},

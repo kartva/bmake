@@ -17,7 +17,8 @@ const goatCounter = process.env.NEXT_PUBLIC_GOAT_COUNTER!==undefined && process.
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "Board Game Engine"
+    title: "*fish",
+    icons: "/favicon.png"
   };
 }
 
@@ -32,8 +33,6 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
         <meta property="twitter:domain" content={domain} />
         <meta property="twitter:url" content={url} />
-
-        {goatCounter && <GoatCounter goatCounter={goatCounter} />}
       </head>
       <body>
         <AppWrapper>

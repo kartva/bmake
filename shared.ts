@@ -23,9 +23,12 @@ export type MoveHistory = {
 
 export type ClientState = {
 	id: string,
+	ai_loading: boolean,
 	game: Omit<Game,"init"|"src">,
 	position: Position,
 	clientPlayer: 0|1,
+	end: "win"|"loss"|"draw"|null, // for active player
+	started: number,
 	moves: Move[],
 	history: MoveHistory
 };
@@ -86,8 +89,10 @@ export function errorName(err: (ServerResponse<unknown>&{status:"error"})["error
 }
 
 export type Game = {
+	name: string,
 	src: string,
 	pieces: string[],
 	n: number, m: number,
-	init: number[][]
+	init: number[][],
+	autoFlip: boolean
 };

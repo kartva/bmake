@@ -1,8 +1,9 @@
 "use client"
 
 import { CMEditor } from "@/components/code_editor";
-import { bgColor, borderColor, Button, containerDefault, IconButton, Input, Loading, namePaths, Text } from "@/components/util";
-import { Tab, Tabs } from "@heroui/react";
+import { bgColor, borderColor, Button, containerDefault, Divider, IconButton, Input, Loading, LogoText, namePaths, Text } from "@/components/util";
+import { Switch } from "@heroui/switch";
+import { Tab, Tabs } from "@heroui/tabs";
 import { useContext, useEffect, useState } from "react";
 import { AppCtx, ModalActions, ModalCtx } from "@/components/wrapper";
 import Image from "next/image";
@@ -73,8 +74,8 @@ export default function Page() {
 	const [game, setGame] = useState<Game>(()=>{
 		const s = window.localStorage.getItem("game");
 		return s ? JSON.parse(s) as Game : {
-			src: "-- write some Lua here", pieces: [] as string[], n: 8, m: 8,
-			init: [...new Array(8)].map(_=>[...new Array(8)].map(_=>0))
+			src: "-- write some Lua here", pieces: [] as string[], n: 8, m: 8, name: "",
+			init: [...new Array(8)].map(_=>[...new Array(8)].map(_=>0)), autoFlip: true
 		};
 	});
 
@@ -117,26 +118,34 @@ export default function Page() {
 	};
 
   return <>
-		<Text v="big" className="mb-5" >
-			Game Editor
-		</Text>
+		<div className="flex flex-row gap-2 items-center mb-10" >
+			<LogoText/>
+			<Divider className="h-10" />
+			<Text v="big" >
+				Game Editor
+			</Text>
+		</div>
 
 		<Tabs>
 			<Tab key="init" title="Initial Board" >
 				<div className="flex flex-col gap-5" >
-					<div className="max-w-[30rem] flex flex-col gap-2" >
-						<div className="flex flex-row items-center gap-2 justify-between" >
-							<Text v="bold" >Board width</Text>
-							<Input type="number" min={1} step={1} value={game.m} onChange={(ev)=>{
-								upGameNM("m", ev.target.value);
-							}} />
-						</div>
-						<div className="flex flex-row items-center gap-2 justify-between" >
-							<Text v="bold" >Board height</Text>
-							<Input type="number" min={1} step={1} value={game.n} onChange={(ev)=>{
-								upGameNM("n", ev.target.value);
-							}} />
-						</div>
+					<div className="max-w-[50rem] grid grid-cols-[2fr_3fr] gap-2" >
+						<Text v="bold" >Name</Text>
+						<Input value={game.name} pattern="^\w{5,20}$" onChange={(ev)=>{
+							upGame({name: ev.target.value});
+						}} />
+						<Text v="bold" >Board width</Text>
+						<Input type="number" min={1} step={1} value={game.m} onChange={(ev)=>{
+							upGameNM("m", ev.target.value);
+						}} />
+						<Text v="bold" >Board height</Text>
+						<Input type="number" min={1} step={1} value={game.n} onChange={(ev)=>{
+							upGameNM("n", ev.target.value);
+						}} />
+						<Text v="bold" >Flip board by player</Text>
+						<Switch isSelected={game.autoFlip} onValueChange={(ev)=>{
+							upGame({autoFlip: ev});
+						}} />
 					</div>
 
 					{tooBig ? <Alert bad title="Board too large" txt="Sorry about that" />
@@ -190,9 +199,19 @@ export default function Page() {
 				</div>
 			</Tab>
 			<Tab key="lua" title="Lua" >
-				<CMEditor source={game.src} setSource={(src)=>{
-					upGame({src});
-				}} />
+				{valStatus?.type=="error" ? <Alert bad title="Validation failed" txt={valStatus.what} className="mb-4" />
+					: valStatus?.type=="loading" ? <Loading/>
+					: valStatus?.type=="ok" && <div>
+						<Alert title="Success" txt="Lua is good to go 👍" className="mt-4" />
+						{canContinue && <Button className={`my-2 ${bgColor.sky}`} onClick={()=>{
+							ctx.open({
+								type: "other", name: "Training the AI",
+								modal: <TrainingModal game={{
+									...game, init: goodBoard
+								}} />
+							});
+						}} >Create game</Button>}
+					</div>}
 
 				<Button
 					onClick={()=>{
@@ -208,24 +227,14 @@ export default function Page() {
 							});
 						});
 					}}
-					className="mt-5"
+					className="mb-5"
 					disabled={valStatus?.type=="loading"} >
 					Validate code
 				</Button>
 
-				{valStatus?.type=="error" ? <Alert bad title="Validation failed" txt={valStatus.what} className="mt-4" />
-					: valStatus?.type=="loading" ? <Loading/>
-					: valStatus?.type=="ok" && <div>
-						<Alert title="Success" txt="Lua is good to go 👍" className="mt-4" />
-						{canContinue && <Button className="mt-4" onClick={()=>{
-							ctx.open({
-								type: "other", name: "Training the AI",
-								modal: <TrainingModal game={{
-									...game, init: goodBoard
-								}} />
-							});
-						}} >Create game</Button>}
-					</div>}
+				<CMEditor source={game.src} setSource={(src)=>{
+					upGame({src});
+				}} />
 			</Tab>
 		</Tabs>
   </>;

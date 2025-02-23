@@ -6,7 +6,7 @@ const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./node_modules/@heroui/theme/dist/components/(checkbox|modal|pagination|popover|progress|slider|spinner|tabs|button|ripple).js"
+    "./node_modules/@heroui/theme/dist/components/(checkbox|modal|pagination|popover|progress|slider|spinner|tabs|button|ripple|toggle).js"
   ],
   darkMode: ["selector", "&:is(.dark *, .dark)"],
   theme: {

@@ -11,7 +11,10 @@ export default function Home() {
 
   return <div className="flex flex-row gap-10 mx-auto items-center my-11" >
     <div className="flex flex-col gap-9 items-start" >
-      <LogoText/>
+      <div className="flex flex-col -gap-2 items-center" >
+        <LogoText/>
+          <Text v="dim" className="text-lg italic" >(called starfish)</Text>
+      </div>
       <Text v="md" >
         A game engine for creating chesslike board games, complete with an AI to play against.
       </Text>

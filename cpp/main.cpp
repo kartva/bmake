@@ -1,11 +1,10 @@
 #include "util.hpp"
 #include "lua_interface.hpp"
 #include "server_io.hpp"
-#include "nn.hpp"
-#include "search.hpp"
+#include "search2.hpp"
+#include "trainer.hpp"
 
 #include <sstream>
-#include <fstream>
 #include <iostream>
 
 using namespace std;
@@ -24,9 +23,15 @@ int main(int argc, char** argv) {
 	string lua_path; ss >> lua_path;
 
 	if (ty=="validate") {
+		cout << "trying validate\n";
 		try {
 			LuaInterface lua(lua_path);
 			lua.validate();
+
+			vec<Move> moves;
+			Position pos = lua.initial_position();
+			lua.valid_moves(moves, pos);
+			cout << "Valid moves: " << moves.size() << endl;
 		} catch (LuaException& e) {
 			cout<<"Lua error: "<<e.err<<endl;
 			return 1;
@@ -34,8 +39,25 @@ int main(int argc, char** argv) {
 			cout<<"Other exception"<<endl;
 			return 1;
 		}
+
 	} else if (ty=="train") {
-		//...
+		cout << "trying train\n";
+
+		Trainer trainer("sak.dh.kfjse");
+
+		try {
+			LuaInterface lua(lua_path);
+			lua.validate();
+			trainer.train(lua);
+
+		} catch (LuaException& e) {
+			cout<<"Lua error: "<<e.err<<endl;
+			return 1;
+		} catch (exception& e) {
+			cout<<"Other exception"<<endl;
+			return 1;
+		}
+
 	} else if (ty=="play") {
 		// string weights_path; ss >> weights_path;
 		// ifstream weights_input_stream(weights_path);
@@ -44,17 +66,42 @@ int main(int argc, char** argv) {
 		// 	return 1;
 		// }
 
-		LuaInterface lua(lua_path);
 		ServerIO io;
-		int n,m; cin>>n>>m;
+		int n,m,npty; cin>>n>>m>>npty;
+
+		Searcher search(npty, n, m, 1000, 0, lua_path);
+		auto& lua = search.interfaces[0];
+		vec<Move> moves;
 
 		while (true) {
+			int query_type; cin>>query_type;
 			Position pos = io.receive_pos();
 
-			vec<Move> out;
-			lua.valid_moves(out, pos);
-			io.out.push_back(out.size());
-			for (auto& move: out) io.send_move(move,n,m);
+			if (query_type==0) {
+
+				int pty;
+				switch (lua.get_pos_type(pos)) {
+					case PosType::Win: pty=1; break;
+					case PosType::Draw: pty=0; break;
+					case PosType::Loss: pty=-1; break;
+					case PosType::Other: pty=-2; break;
+				}
+
+				io.out.push_back(pty);
+
+				moves.clear();
+				lua.valid_moves(moves, pos);
+				io.out.push_back(moves.size());
+				for (auto& move: moves) io.send_move(move,n,m);
+
+			} else if (query_type==1) {
+
+				auto search_out = search.search(pos);
+				if (search_out.move_i==-1) return 1;
+				io.send_move(search_out.possible[search_out.move_i], m, n);
+
+			}
+
 			io.flush();
 		}
 	} else {

@@ -7,7 +7,7 @@ set(CMAKE_COLOR_DIAGNOSTICS ON)
 add_compile_options(-Wall -Wextra -Wpedantic -Wextra -Wshadow -Wno-sign-compare)
 
 if (CMAKE_BUILD_TYPE MATCHES Release)
-    add_compile_options(-O3)
+    add_compile_options(-O3 -ggdb)
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
@@ -35,10 +35,11 @@ FetchContent_MakeAvailable(gtl)
 
 # FetchContent_MakeAvailable(cereal) 
 
-add_executable(searchtest search_test.cpp lua_interface.cpp)
+add_executable(searchtest search_test.cpp lua_interface.cpp chess.cpp)
 add_executable(main main_old.cpp lua_interface.cpp)
-add_executable(main2 main.cpp lua_interface.cpp)
+add_executable(main2 main.cpp lua_interface.cpp nn.cpp chess.cpp)
 add_executable(nn nn.cpp)
+add_executable(chess chess.cpp chess.hpp util.hpp)
 
 find_package(Lua REQUIRED)
 
@@ -51,8 +52,12 @@ target_include_directories(main PUBLIC ${LUA_INCLUDE_DIR})
 target_link_libraries(searchtest PUBLIC ${LUA_LIBRARY} gtl)
 target_include_directories(searchtest PUBLIC ${LUA_INCLUDE_DIR})
 
+target_link_libraries(chess PUBLIC gtl ${LUA_LIBRARY})
+target_include_directories(chess PUBLIC ${LUA_INCLUDE_DIR})
+
 if (CMAKE_BUILD_TYPE MATCHES Release)
     find_package(mimalloc 2.1 REQUIRED)
+    target_link_libraries(chess PUBLIC mimalloc)
     target_link_libraries(main PUBLIC mimalloc)
     target_link_libraries(main2 PUBLIC mimalloc)
     target_link_libraries(searchtest PUBLIC mimalloc)

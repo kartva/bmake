@@ -419,3 +419,31 @@ export function Carousel({items}: {items: React.ReactNode[]}) {
 		</div>
 	</div>
 }
+
+export function useTimeUntil(when: number|string|Date|null, after: boolean) {
+	const [until, setUntil] = useState<number|null>();
+	useEffect(() => {
+		if (when==null) {
+			setUntil(null);
+			return;
+		}
+
+		const d = new Date(when).getTime();
+		let curTimeout: number|NodeJS.Timeout|null = null;
+		const cb = () => {
+			const x = after ? Date.now()-d : d-Date.now();
+			if (x<0) {
+				if (after) curTimeout = setTimeout(cb, -x);
+				setUntil(null);
+			} else {
+				setUntil(after ? Math.floor(x/1000) : Math.ceil(x/1000));
+				curTimeout = setTimeout(cb, 1000-x%1000);
+			}
+		};
+
+		cb();
+		return () => {if (curTimeout!=null) clearTimeout(curTimeout);};
+	}, [when, after]);
+
+	return until;
+}

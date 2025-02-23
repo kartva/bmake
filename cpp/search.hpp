@@ -70,8 +70,8 @@ vec<vec<int>> pst = {
 		17,  30,  -3, -14,   6,  -1,  40,  18}
 };
 
-constexpr int LOSING = -1e6;
-constexpr int WINNING = 1e6;
+constexpr int LOSING = -1e5+200;
+constexpr int WINNING = 1e5;
 
 constexpr int QS = 40;
 constexpr int QS_A = 140;
@@ -127,7 +127,7 @@ struct Searcher {
 	uint64_t player_hash;
 
 	gtl::parallel_flat_hash_map<uint64_t, int, std::identity,
-		std::equal_to<uint64_t>, SearchAlloc<int>, 6, std::mutex> killer_move;
+	std::equal_to<uint64_t>, SearchAlloc<int>, 6, std::mutex> killer_move;
 
 	gtl::parallel_flat_hash_map<uint64_t, SearchStateCache, std::identity,
 		std::equal_to<uint64_t>, SearchAlloc<SearchStateCache>, 6, std::mutex> cache;
@@ -181,21 +181,21 @@ struct Searcher {
 	}
 
 	int score(Position& pos) {
-		int o=0;
+		int o1=0,o2=0;
 		for (int i=0; i<n; i++) for (int j=0; j<m; j++) {
 			int x = i*m+j;
 			if (pos.board[x]){
 				if (pos.board[x] <= 6){
 					//std::cout << pos.board[x] - 1 << ' ' << x << ' ' << pst[pos.board[x] - 1][x] << '\n';
-					if (!pos.next_player) o+=pst[pos.board[x]-1][x];
+					o1+=piece_weights[pos.board[x]-1] + pst[pos.board[x] - 1][x];
 				}
 				else {
 					//std::cout << pos.board[x] - 6 - 1 << ' ' << x << ' ' << pst[pos.board[x] - 6 - 1][x] << '\n';
-					if (pos.next_player) o+=pst[pos.board[x]-6-1][x];
+					o2+=piece_weights[pos.board[x]-6-1] + pst[pos.board[x] - 6 - 1][x];
 				}
 			}
 		}
-		return pos.next_player ? -o : o;
+		return pos.next_player ? o2-o1 : o1-o2;
 	}
 	int n_calls=0;
 
@@ -400,24 +400,26 @@ struct Searcher {
 		return std::make_optional<std::pair<Move,int>>({init_moves[out_move_i], out});
 	}
 
-	static constexpr int TIME_LIMIT = 10000;
+	static constexpr int TIME_LIMIT = 100000000;
 	std::optional<Move> search() {
 		auto start = std::chrono::steady_clock::now();
 		std::optional<Move> best;
 		bool tle=false;
 
 		for (int depth=1; !tle && depth<=max_depth; depth++) {
-			std::cout<<"depth "<<depth<<", cache size "<<cache.size()<<", lua calls "<<n_calls<<std::endl;
+			// std::cout<<"depth "<<depth<<", cache size "<<cache.size()<<", lua calls "<<n_calls<<std::endl;
 
 			auto now = std::chrono::steady_clock::now();
 
 			std::optional<Move> best2;
 			int lo=LOSING, hi=WINNING;
 			while (!tle && hi-lo > EVAL_ROUGHNESS) {
-				int mid = (hi+lo+1)y ,/2;
+				int mid = (hi+lo+1)
+				/2;
 				auto ret = bound(mid, depth);
-				if (!ret) return std::nullopt;
-
+				if (!ret){
+					return std::nullopt;
+				}
 				if (ret->second >= mid) lo=mid; else hi=mid-1;
 				best2=ret->first;
 

@@ -25,31 +25,45 @@ export class MainProc {
 		this.read = this.proc.stdout.pipeThrough(new TextDecoderStream())
 			.pipeThrough(new TextLineStream()).getReader();
 
+		this.proc.stderr.pipeThrough(new TextDecoderStream()).pipeTo(new WritableStream({
+			write(chunk) { console.error(chunk); }
+		}));
+
 		const encoder = new TextEncoderStream();
 		this.write = encoder.writable.getWriter();
 		encoder.readable.pipeTo(this.proc.stdin);
 	}
 	
 	async readUntil(tl=5000): Promise<string> {
-		const res = await Promise.race([
-			new Promise(res=>setTimeout(res, tl)).then(_=>({type: "timeout"} as const)),
-			this.proc.status.then(x=>({type: "exit", status: x} as const)),
-			this.read.read().then(x=>({type: "line", line: x} as const))
-		]);
+		const tm = new Promise(res=>setTimeout(res, tl)).then(_=>({type: "timeout"} as const));
+		const ex = this.proc.status.then(x=>({type: "exit", status: x} as const));
 
-		if (res.type=="timeout") throw new Error("timeout");
-		if (res.type=="exit") {
-			throw new Error(`process exited with code ${res.status.code}, stderr ${
-				await this.readStderr()
-			}`);
+		while (true) {
+			const res = await Promise.race([
+				tm, ex, this.read.read().then(x=>({type: "line", line: x} as const))
+			]);
+
+			if (res.type=="timeout") throw new Error("timeout");
+			if (res.type=="exit") {
+				throw new Error(`process exited with code ${res.status.code}, stderr ${
+					await this.readStderr()
+				}`);
+			}
+
+			if (res.line.done && res.line.value==undefined) {
+				throw new Error("expected text, got eof");
+			} else if (res.line.value==undefined) {
+				continue;
+			}
+
+			return res.line.value;
 		}
-
-		if (res.line.value==undefined) throw new Error("expected text, got eof");
-		return res.line.value;
 	}
 
 	async readInts(tl=5000) {
-		return (await this.readUntil(tl)).split(/\s+/).map(x=>Number.parseInt(x));
+		const str = await this.readUntil(tl);
+		console.log(str)
+		return (str).split(/\s+/).map(x=>Number.parseInt(x));
 	}
 
 	async wait(tl=5000) {

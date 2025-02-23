@@ -1,5 +1,5 @@
 #pragma once
-#include "search.hpp"
+#include "search2.hpp"
 #include "nn.hpp"
 #include <random>
 
@@ -7,17 +7,17 @@ class Trainer {
     Network net;
     std::string weights_path;
     int games_played = 0;
-    const int games_per_iteration = 100;
+    const int games_per_iteration = 1;
     float learning_rate = 0.0001f;
 
     struct GameRecord {
         vec<Position> positions;
-        vec<int> scores;  // Scores from NNUE at time of position evaluation
+        vec<int> scores;  // Scores from NNUE/whatever else at time of position evaluation
         PosType outcome;  // Final game result
     };
     
     vec<GameRecord> game_history;
-    const float discount_factor = 0.99f;
+    // const float discount_factor = 0.99f;
 
 public:
     Trainer(std::string weights_path): weights_path(weights_path) {
@@ -57,27 +57,84 @@ private:
         net.output_bias = 0.0f;
     }
 
+    void printBoardStateHumanReadable(unsigned char board[64]) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                int x = i*8 + j;
+                if (board[x] == 0) {
+                    std::cout << "  ";
+                } else {
+                    auto piece = board[x];
+                    if (piece <= 6) {
+                        std::cout << ".";
+                    } else {
+                        std::cout << "+";
+                        piece -= 6;
+                    }
+                    std::cout << piece_names[piece];
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+
     void selfPlay(LuaInterface& lua) {
         Position pos = lua.initial_position();
-        Searcher searcher(6, 8, 8, 4, 4, pos);
-        searcher.nnue = net;
+        // Searcher searcher(6, 8, 8, 4, 4, pos);
+        // searcher.nnue = net;
+
+        Searcher searcher(32, 8, 8, 1000, 0, "../lua-scripts/chess/chess2.lua");
 
         GameRecord record;
         
         while (true) {
             auto pos_type = lua.get_pos_type(pos);
+            auto pos_type_str = pos_type == PosType::Win ? "Win" : 
+                pos_type == PosType::Loss ? "Loss" : 
+                pos_type == PosType::Draw ? "Draw" : "Other";
+
+            std::cout << "Pos type: " << pos_type_str << std::endl;
             if (pos_type != PosType::Other) {
                 record.outcome = pos_type;
                 break;
             }
 
-            auto move = searcher.search();
-            if (!move) break;
+            // vec<Move> moves;
+
+            // lua.valid_moves(moves, pos);
+
+            // if (moves.size() == 0) {
+            //     std::cout << "No moves found!\n";
+            //     break;
+            // }
+
+            // Move move = moves[rand() % moves.size()];
+
+            // Move move = moves[1];
+            
+            auto out = searcher.search(pos);
+
+            std::cout << "before search\n";
+            
+            Searcher::SearchOut sout = searcher.search(pos);
+            std::cout << "Search done. Possible moves: " << sout.possible.size() << '\n';
+            std::cout << "Move index: " << sout.move_i << '\n';
+            // if (!move) break;
+            if (sout.move_i == -1) {
+                std::cout << "No moves found!\n";
+                break;
+            }
+
+            // sout.move_i %= sout.possible.size();
+
+            Move move = sout.possible[sout.move_i];
             
             record.positions.push_back(pos);
             record.scores.push_back(searcher.score(pos));
+
+            printBoardStateHumanReadable(move.board);
             
-            memcpy(pos.board, move->board, sizeof(pos.board));
+            memcpy(pos.board, move.board, sizeof(pos.board));
             pos.next_player ^= 1;
         }
 

@@ -9,16 +9,18 @@ type Board = {
 	n: number, m: number,
 	board: number[][],
 	moves?: Move[],
-	pieces: string[]
+	pieces: string[],
+	lastMove?: Move
 };
 
 export default function ChessBoard({
-	board, selectSquare, selectMove, selectedSquare1
+	board, selectSquare, selectMove, selectedSquare1, flip
 }: {
 	board: Board,
 	selectedSquare1?: Coordinate,
 	selectSquare?: (x: Coordinate)=>void,
-	selectMove?: (x: Move)=>void
+	selectMove?: (x: Move)=>void,
+	flip?: boolean
 }) {
 	const [selectedSquare2, setSelectedSquare] = useState<Coordinate | null>(null);
 	const selectedSquare = selectedSquare1 ?? selectedSquare2;
@@ -39,12 +41,15 @@ export default function ChessBoard({
 		return ()=>document.removeEventListener("pointerdown", listener);
 	}, []);
 
+	const b2 = board.board.map((x,i)=>[x,i] as const);
+	const lasts = [board.lastMove?.to, board.lastMove?.from].map(x=>x ? `${x.i}-${x.j}` : null);
+
 	return <div className="grid gap-[1px] bg-gray-600 p-[1px]"
 		style={{
 			gridTemplateColumns: `repeat(${board.m}, minmax(0, 1fr))`,
 			gridTemplateRows: `repeat(${board.n}, minmax(0, 1fr))`
 		}} ref={container} >
-		{board.board.map((vs,row) =>
+		{(flip ? b2.toReversed() : b2).map(([vs,row]) =>
 			vs.map((x, col) => {
 				const isSel = selectedSquare?.j == col && selectedSquare?.i == row;
 				const targetMove = movesTo.get(`${col}-${row}`);
@@ -56,10 +61,11 @@ export default function ChessBoard({
 							${(row+col)%2 ? "bg-[#B58863]" : "bg-[#F0D9B5]"}
 							${isSel ? "ring-2 ring-yellow-400 ring-inset" : ""}
 							${targetMove!=undefined ? "after:absolute after:inset-0 after:bg-yellow-400 after:opacity-30" : ""}
+							${lasts.includes(`${row}-${col}`) ? "ring-2 ring-blue-400 ring-inset" : ""}
 							hover:ring-2 hover:ring-yellow-400 hover:ring-inset`}
 						onClick={() => {
-							if (targetMove!=undefined) {
-								selectMove?.(targetMove);
+							if (targetMove!=undefined && selectMove) {
+								selectMove(targetMove);
 								setSelectedSquare(null);
 							} else if (selectSquare) {
 								selectSquare({j: col, i: row});
