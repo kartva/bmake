@@ -54,6 +54,10 @@ class BadState extends Error {
   constructor() {super("bad state");}
 }
 
+type DBGame = Game&{
+  //weights?
+};
+
 async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState> {
   const reset = async ()=>{
     while (ctx.dispose.length>0) await ctx.dispose.pop()!();
@@ -131,6 +135,10 @@ async function handle(msg: MessageToServer, ctx: HandleCtx): Promise<ServerState
   switch (msg.type) {
     case "submit_lua": {
       const process = await start(msg.src, "validate");
+      await process.send([
+        0, msg.n, msg.m,
+        ...msg.init
+      ].join(" "));
 
       if ((await process.wait()).code==1) {
         ctx.reply({type: "lua_validated", status: "error", what: await process.readStdout()});
