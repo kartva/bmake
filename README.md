@@ -35,3 +35,13 @@ We learned a lot about how chess engines work: optimizations that help prune the
 
 ## What's next for *fish
 We haven't been able to finish some of the features -- in particular, integrating the NNUE into the move search engine which tunes the search heuristic to be game-specific. We've currently put in chess weights.
+
+## Demo Screenshots and Video
+![Screenshot from 2025-02-23 08-35-11](https://github.com/user-attachments/assets/0d0930d5-9b2a-46af-ade1-eba9128426aa)
+![Screenshot from 2025-02-23 08-36-12](https://github.com/user-attachments/assets/b1014428-3b0b-4e48-88c3-2ff33048de71)
+![image](https://github.com/user-attachments/assets/269a8b8c-ad05-4a65-a990-bb3c04223460)
+![Screenshot from 2025-02-23 08-36-29](https://github.com/user-attachments/assets/7915d247-cecd-4157-b90d-0e3aaad3edc1)
+
+
+https://github.com/user-attachments/assets/76527ed7-9efa-4e85-bac7-36ae105b7c31
+
