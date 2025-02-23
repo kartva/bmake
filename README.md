@@ -4,6 +4,8 @@
   <b>Training AI to beat you at board games that you make.</b>
 </p>
 
+[Skip to end of photos and videos.](#demo-screenshots-and-video)
+
 ## Inspiration
 Our team of competitive programmers and chess enthusiasts naturally graviated to chess engines. We enjoyed the idea of applying chess engine techniques to create a general playing framework.
 
