@@ -4,7 +4,7 @@
   <b>Training AI to beat you at board games that you make.</b>
 </p>
 
-[Skip to end of photos and videos.](#demo-screenshots-and-video)
+[Skip to end of photos and videos.](#demo-screenshots-and-video) Find our [integration with Sync.](#sponsor-integration) at the end as well.
 
 ## Inspiration
 Our team of competitive programmers and chess enthusiasts naturally graviated to chess engines. We enjoyed the idea of applying chess engine techniques to create a general playing framework.
@@ -37,6 +37,9 @@ We learned a lot about how chess engines work: optimizations that help prune the
 
 ## What's next for *fish
 We haven't been able to finish some of the features -- in particular, integrating the NNUE into the move search engine which tunes the search heuristic to be game-specific. We've currently put in chess weights.
+
+## Sponsor Integration
+A special lip-synced video made by Sync. plays when you lose.
 
 ## Demo Screenshots and Video
 ![Screenshot from 2025-02-23 08-35-11](https://github.com/user-attachments/assets/0d0930d5-9b2a-46af-ade1-eba9128426aa)
